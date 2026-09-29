@@ -1,0 +1,30 @@
+name: New watch platform
+description: Support for another watch or platform (COROS, Suunto, Polar, …)
+labels: [provider]
+body:
+  - type: input
+    id: platform
+    attributes:
+      label: Platform
+      placeholder: "COROS, Suunto, Polar, Wahoo, …"
+    validations:
+      required: true
+  - type: textarea
+    id: api
+    attributes:
+      label: API access
+      description: Official API, partner programme, unofficial API, existing libraries. Links welcome.
+  - type: checkboxes
+    id: scope
+    attributes:
+      label: What is needed
+      options:
+        - label: Read activities
+        - label: Read health data (HRV, sleep, stress)
+        - label: Push structured workouts to the watch
+  - type: checkboxes
+    id: tester
+    attributes:
+      label: Testing
+      options:
+        - label: I own this watch and can test against a real account

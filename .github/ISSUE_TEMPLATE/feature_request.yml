@@ -1,0 +1,20 @@
+name: Feature request
+description: Suggest an improvement to the coach or its tooling
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would it solve?
+      description: The training situation or workflow where the coach falls short.
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: Proposed solution
+  - type: textarea
+    id: methodology
+    attributes:
+      label: Coaching methodology (if relevant)
+      description: Sources for a new coaching rule (Daniels, 80/20, a study, a coach…). Rules must stay generic, never tied to one athlete.

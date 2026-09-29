@@ -1,0 +1,105 @@
+# ── Python ────────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+.env/
+
+# ── Build / packaging ─────────────────────────────────────────────────────────
+dist/
+build/
+*.egg-info/
+*.egg
+MANIFEST
+
+# ── Caches ───────────────────────────────────────────────────────────────────
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.hypothesis/
+htmlcov/
+.coverage
+coverage.xml
+
+# ── IDEs ─────────────────────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# ── Credentials & secrets ─────────────────────────────────────────────────────
+# Local .env file containing GARMIN_EMAIL / GARMIN_PASSWORD
+.env
+.env.local
+.env.*.local
+
+# Garmin OAuth tokens (garth) — normally in ~/.garth/
+# In case someone copies them into the project
+garth_tokens/
+*.garth
+garmin_tokens*.json
+oauth1_token.jwt
+oauth2_token.json
+
+# ── Personal athlete data ─────────────────────────────────────────────────────
+# Coaching data lives in ~/.open-coach/ (outside the project)
+# In case someone copies it here by mistake:
+.open-coach/
+athlete_data/
+
+# Local training plans + personal coaching data.
+# Everything under plans/ is personal (generated plan renders, journals, notes, references)
+# EXCEPT plans/.templates/ (versioned skeletons used by scripts/setup_local.py).
+plans/*
+!plans/.templates/
+!plans/.templates/**
+
+# ── Claude Code ───────────────────────────────────────────────────────────────
+# settings.local.json = local permissions, machine-specific
+.claude/settings.local.json
+# Note: .claude/settings.json (shared) is versioned
+
+# ── Personal: local config for the hooks ─────────────────────────────────────
+# The hooks in .claude/hooks/ and the skills in .claude/skills/ are VERSIONED
+# and 100 % generic. Any personal data (race keywords, files to watch, paths)
+# lives in .claude/local/ (read at runtime with a graceful fallback).
+# See .claude/local.example/README.md and CONTRIBUTING.md § Data separation policy.
+.claude/local/
+
+# ── Notes & article material (private, outside the repo) ─────────────────────
+# LEARNINGS.md and PLAN.md are used to write an article about the project — they
+# hold personal narrative content, not code. Keep them out of the repo.
+LEARNINGS.md
+PLAN.md
+
+# ── Cache local SeleniumBase (driver Chrome UC) ──────────────────────────────
+downloaded_files/
+
+# ── Lockfiles ────────────────────────────────────────────────────────────────
+# uv.lock is VERSIONED (CI reproducibility) — only foreign lockfiles are ignored.
+# poetry.lock, Pipfile.lock si migration future
+poetry.lock
+Pipfile.lock
+
+# ── rclone (Drive sync — see scripts/drive_sync.sh) ──────────────────────────
+# Sentinels and backup folders produced by the optional Drive sync.
+# Inside <repo>/plans/ they're already covered by `plans/*`; these patterns
+# catch any case where they end up elsewhere in the tree.
+**/RCLONE_TEST
+**/.rclone-backup/
+
+# ── OS ────────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Logs ─────────────────────────────────────────────────────────────────────
+*.log
+
+# Dev scratch files
+scratch*.py

@@ -1,0 +1,9 @@
+{
+  "_comment": "Personal config for .claude/hooks/*. Copy this file to .claude/local/hooks.config.json (gitignored) and edit. All fields optional — hooks fall back to safe defaults if absent.",
+
+  "journal_reminder": {
+    "_comment": "PostToolUse hook (.claude/hooks/journal_reminder_on_plan_edit.py). Watches edits to *.md files directly in plans/ by default; this list adds extra filenames to watch outside plans/ (rare).",
+
+    "extra_watched_filenames": []
+  }
+}

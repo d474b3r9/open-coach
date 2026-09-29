@@ -1,0 +1,39 @@
+name: Bug report
+description: Something does not work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting! **Never paste credentials, tokens or personal health data** (heart rate, sleep, injuries, race results) — redact them.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What you did, what you expected, what you got instead.
+    validations:
+      required: true
+  - type: textarea
+    id: repro
+    attributes:
+      label: Steps to reproduce
+      description: The MCP tool called (with its arguments, redacted) or the command run.
+  - type: input
+    id: watch
+    attributes:
+      label: Watch platform
+      placeholder: "Garmin (fēnix 7), Strava only, …"
+  - type: input
+    id: client
+    attributes:
+      label: MCP client / model
+      placeholder: "Claude Code + Claude Opus, Codex, Gemini CLI, …"
+  - type: input
+    id: version
+    attributes:
+      label: Open Coach version or commit
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs (redacted)
+      render: text
