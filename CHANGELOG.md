@@ -112,6 +112,10 @@ Gemini CLI, VS Code, Claude Desktop…), not only Claude Code.
 
 ### Fixed
 
+- `scripts/audit_docs.py` no longer warns "no numbered sections found":
+  the check for `## N.` sections in the methodology `SKILL.md` is removed,
+  since the rules moved to named sections in `references/`. The contributor
+  docs now describe that layout.
 - `coach://context`, race predictions / readiness / pacing and plan
   generation judged current form from the CTL/ATL/TSB stored at the last
   bootstrap (months old). They now use today's load from the watch;

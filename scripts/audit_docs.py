@@ -5,11 +5,10 @@ Checks performed:
 2. Consistency of the "X règles" / "X rules" rule-count claim between the
    frontmatter description and the number of "### Règle N" / "### Rule N"
    sections in memory files (French tokens kept for the author's memory)
-3. coaching-rules SKILL.md — continuous numbering of "## N. ..." sections
-4. LEARNINGS.md — continuous numbering + recap table matches the sections
-5. Cross-references SKILL → LEARNINGS (cf #N) are all valid
-6. No personal-data leak (home paths, emails, Drive IDs, secrets) in versioned files
-7. No unexpected French in versioned text (the repo is English; intentional
+3. LEARNINGS.md — continuous numbering + recap table matches the sections
+4. Cross-references SKILL → LEARNINGS (cf #N) are all valid
+5. No personal-data leak (home paths, emails, Drive IDs, secrets) in versioned files
+6. No unexpected French in versioned text (the repo is English; intentional
    French is allowlisted or marked ``fr-ok``)
 
 Usage: uv run python scripts/audit_docs.py
@@ -174,43 +173,7 @@ def check_feedback_rules_count(audit: Audit) -> None:
             audit.ok(f"{f.name}: no rule count claim, {actual_n} sections found")
 
 
-# ── Check 3: SKILL.md numbering ## N ─────────────────────────────────────────
-
-
-_SECTION_RE = re.compile(r"^##\s+(\d+)\.\s+", re.MULTILINE)
-
-
-def check_skill_numbering(audit: Audit) -> None:
-    utf8_print("\n--- Check 3: SKILL.md coaching-rules — continuous numbering ---")
-
-    if not SKILL_FILE.exists():
-        audit.err(f"SKILL.md not found: {SKILL_FILE}")
-        return
-
-    text = SKILL_FILE.read_text(encoding="utf-8")
-    nums = [int(n) for n in _SECTION_RE.findall(text)]
-
-    if not nums:
-        audit.warn("SKILL.md: no numbered sections found")
-        return
-
-    # Accept either [1..N] or [0, 1..N] (a `## 0. ...` bootstrap section is allowed)
-    start = nums[0] if nums[0] in (0, 1) else 1
-    expected = list(range(start, max(nums) + 1))
-    if nums == expected:
-        audit.ok(f"SKILL.md sections: {start} → {max(nums)} continuous, no gap")
-    else:
-        gaps = set(expected) - set(nums)
-        dups = [n for n in nums if nums.count(n) > 1]
-        msg = f"SKILL.md: numbering issue. nums={nums}"
-        if gaps:
-            msg += f", gaps={sorted(gaps)}"
-        if dups:
-            msg += f", duplicates={sorted(set(dups))}"
-        audit.err(msg)
-
-
-# ── Check 4: LEARNINGS.md numbering + recap table ────────────────────────────
+# ── Check 3: LEARNINGS.md numbering + recap table ────────────────────────────
 
 
 _LEARNING_HEADING_RE = re.compile(r"^###\s+(\d+)\.\s+", re.MULTILINE)
@@ -218,7 +181,7 @@ _LEARNING_TABLE_ROW_RE = re.compile(r"^\|\s*(\d+)\s*\|", re.MULTILINE)
 
 
 def check_learnings(audit: Audit) -> None:
-    utf8_print("\n--- Check 4: LEARNINGS.md — numbering + recap table ---")
+    utf8_print("\n--- Check 3: LEARNINGS.md — numbering + recap table ---")
 
     if not LEARNINGS_FILE.exists():
         audit.ok("LEARNINGS.md not present (gitignored / private), skip")
@@ -260,14 +223,14 @@ def check_learnings(audit: Audit) -> None:
             audit.err(f"LEARNINGS.md table rows without section: {sorted(only_in_table)}")
 
 
-# ── Check 5: cross-references SKILL → LEARNINGS ──────────────────────────────
+# ── Check 4: cross-references SKILL → LEARNINGS ──────────────────────────────
 
 
 _LEARNINGS_REF_RE = re.compile(r"LEARNINGS\s*#\s*(\d+)", re.IGNORECASE)
 
 
 def check_cross_refs(audit: Audit) -> None:
-    utf8_print("\n--- Check 5: cross-refs SKILL → LEARNINGS ---")
+    utf8_print("\n--- Check 4: cross-refs SKILL → LEARNINGS ---")
 
     if not SKILL_FILE.exists():
         audit.warn("skill file missing, skip cross-refs")
@@ -293,7 +256,7 @@ def check_cross_refs(audit: Audit) -> None:
         audit.ok(f"SKILL.md: {len(skill_refs)} LEARNINGS refs → all valid ({sorted(skill_refs)})")
 
 
-# ── Check 6: personal-data leak in versioned files ──────────────────────────
+# ── Check 5: personal-data leak in versioned files ──────────────────────────
 # Grep structural markers of personal data in the versioned tree (gitignored
 # paths such as plans/, .claude/local/, .venv/ are skipped automatically).
 #
@@ -415,7 +378,7 @@ def _iter_versioned_files() -> Iterator[Path]:
 
 
 def check_personal_data_leak(audit: Audit) -> None:
-    utf8_print("\n--- Check 6: personal-data leak in versioned files ---")
+    utf8_print("\n--- Check 5: personal-data leak in versioned files ---")
 
     leaks: list[tuple[str, int, str]] = []
     for path in _iter_versioned_files():
@@ -439,7 +402,7 @@ def check_personal_data_leak(audit: Audit) -> None:
         audit.ok("no personal-data leak in versioned files")
 
 
-# ── Check 7: no French in versioned text ─────────────────────────────────────
+# ── Check 6: no French in versioned text ─────────────────────────────────────
 
 # Accented letters plus frequent French words that are not English words.
 _FRENCH_RE = re.compile(
@@ -487,7 +450,7 @@ def find_french_lines(rel_path: str, text: str) -> list[tuple[int, str]]:
 
 
 def check_no_french(audit: Audit) -> None:
-    utf8_print("\n--- Check 7: no French in versioned text ---")
+    utf8_print("\n--- Check 6: no French in versioned text ---")
 
     hits: list[tuple[str, int, str]] = []
     for path in _iter_versioned_files():
@@ -526,7 +489,6 @@ def main() -> int:
 
     check_memory_index(audit)
     check_feedback_rules_count(audit)
-    check_skill_numbering(audit)
     check_learnings(audit)
     check_cross_refs(audit)
     check_personal_data_leak(audit)

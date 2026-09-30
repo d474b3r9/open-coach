@@ -1,4 +1,4 @@
-"""Smoke test for `scripts/audit_docs.py` (all 7 audit checks).
+"""Smoke test for `scripts/audit_docs.py` (all 6 audit checks).
 
 Runs the versioned audit script as a subprocess and asserts a clean exit.
 The script performs seven structural checks (personal-data leak in versioned

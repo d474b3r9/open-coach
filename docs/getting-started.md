@@ -242,7 +242,7 @@ For pure-computation logic, put the algorithm in a sibling top-level module (`sr
 
 ### Adding a coaching rule to `coaching-rules`
 
-`.agents/skills/coaching-rules/SKILL.md` is the rule book. Sections are numbered (`## 1. …`, `## 2. …`, …). Add yours at the end, increment the count. If the rule comes from a specific incident, say so in the rule text with the date; the journal (`plans/training-journal.md`, private) is where the incident itself is recorded.
+`.agents/skills/coaching-rules/SKILL.md` is the entry point: how to read the profile and the journal, and which reference file covers what. The rules themselves live in `references/` (`methodology.md`, `dsl-conventions.md`, `anti-patterns.md`), each loaded on demand. Add yours to the file that matches its topic, as a named section (e.g. `## Rule F — …` in `dsl-conventions.md`), and update that file's `## Contents` list. A new reference file must be linked from `SKILL.md` and added to `METHODOLOGY_TOPICS` in `src/open_coach/guides.py` so MCP clients get it too. If the rule comes from a specific incident, say so in the rule text with the date; the journal (`plans/training-journal.md`, private) is where the incident itself is recorded.
 
 If your rule depends on athlete-specific data (e.g. "if HR cap is < 140 …"), make sure the rule reads it from `athlete-profile.md` at runtime — never hardcode.
 
