@@ -57,23 +57,37 @@ def _target_peak_km(vdot: float, distance_m: float) -> float:
 # ── Day assignment ─────────────────────────────────────────────────────────────
 
 
-def _assign_roles(days: list[int], week_type: WeekType) -> dict[int, str]:
-    """Map weekday index → workout role for one week."""
+# A day capped below this is too short for a long run or a quality session:
+# it gets an easy run, unless no other day is available.
+SHORT_DAY_MINUTES = 60
+
+
+def _assign_roles(
+    days: list[int], week_type: WeekType, caps: dict[int, int | None] | None = None
+) -> dict[int, str]:
+    """Map weekday index → workout role for one week.
+
+    *caps* (weekday index → minutes) keeps the long run and the quality session
+    off short days (under ``SHORT_DAY_MINUTES``) whenever a longer day exists.
+    """
     if not days:
         return {}
 
+    caps = caps or {}
+    roomy = [d for d in days if (caps.get(d) or SHORT_DAY_MINUTES) >= SHORT_DAY_MINUTES]
     roles: dict[int, str] = {}
 
-    # Long run: last available day
-    roles[days[-1]] = "long_run"
+    # Long run: last available day that is long enough
+    long_day = (roomy or days)[-1]
+    roles[long_day] = "long_run"
 
-    remaining = list(days[:-1])
+    remaining = [d for d in days if d != long_day]
 
     # Quality session on build/peak weeks
     if week_type in ("build", "peak") and remaining:
-        long_day = days[-1]
+        preferred = [d for d in remaining if d in roomy] or remaining
         # Prefer a day not immediately before the long run
-        candidates = [d for d in remaining if d != long_day - 1] or remaining
+        candidates = [d for d in preferred if d != long_day - 1] or preferred
         quality_day = candidates[len(candidates) // 2]
         roles[quality_day] = "tempo" if week_type == "build" else "intervals"
 
@@ -296,7 +310,8 @@ def generate_plan(
         week_start = start_date + timedelta(weeks=i)
         target_km = volume_for_week(i, week_type, current_weekly_km, peak_km, week_types)
 
-        roles = _assign_roles(day_indices, week_type)
+        caps = {d: max_minutes_for_day(d, constraints) for d in day_indices}
+        roles = _assign_roles(day_indices, week_type, caps)
         n_sessions = len(roles)
 
         workouts: list[PlannedWorkout] = []

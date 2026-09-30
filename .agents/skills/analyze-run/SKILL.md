@@ -21,6 +21,7 @@ Workflow (tools of the open-coach MCP server) to analyse a completed run. For th
    - Pace consistency across splits (even / negative / positive split)
 5. Provide actionable analysis
 6. Ask for subjective feedback → `record_workout_feedback`
+7. Injury check-in: when `record_workout_feedback` or `update_workout_completion` returns `active_injuries`, ask how each one felt during the session → `resolve_injury` if healed, `report_injury` with the new severity if it changed, and adapt the next sessions if it hurt
 
 ## Analysis points
 

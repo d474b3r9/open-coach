@@ -18,6 +18,7 @@ from pydantic import ValidationError
 
 from open_coach.tools._common import (
     get_watch,
+    injury_check,
     invalid_date_error,
     parse_iso_date,
     plan_update_next_steps,
@@ -467,13 +468,17 @@ async def set_training_constraints(
     max_sessions_per_week: int | None = None,
     max_weekday_minutes: int | None = None,
     max_weekend_minutes: int | None = None,
+    max_minutes_by_day: dict[str, int] | None = None,
     notes: str | None = None,
     ctx: Context | None = None,
 ) -> dict:
     """Set training constraints. Only provided fields are changed.
 
-    Duration caps (max_weekday_minutes / max_weekend_minutes) are enforced by
-    generate_training_plan; notes are surfaced in its response for the coach.
+    Duration caps are enforced by generate_training_plan: ``max_minutes_by_day``
+    (e.g. ``{"monday": 45}``) wins over ``max_weekday_minutes`` /
+    ``max_weekend_minutes`` for that day, and a day capped under 60 minutes gets
+    an easy session rather than the long run or a quality session. Notes are
+    surfaced in the plan response for the coach.
     """
     assert ctx is not None
     storage = ctx.lifespan_context["storage"]
@@ -487,6 +492,13 @@ async def set_training_constraints(
         constraints.max_weekday_minutes = max_weekday_minutes
     if max_weekend_minutes is not None:
         constraints.max_weekend_minutes = max_weekend_minutes
+    if max_minutes_by_day is not None:
+        try:
+            constraints.max_minutes_by_day = TrainingConstraints.model_validate(
+                {"max_minutes_by_day": max_minutes_by_day}
+            ).max_minutes_by_day
+        except ValidationError as exc:
+            return {"error": f"Invalid max_minutes_by_day: {exc.errors()[0]['msg']}"}
     if notes is not None:
         constraints.notes = notes
 
@@ -608,7 +620,11 @@ async def record_workout_feedback(
         entry.planned_intensity = planned.target_intensity
 
     storage.append_feedback(entry)
-    return {"status": "feedback_recorded", "entry": entry.model_dump(mode="json")}
+    return {
+        "status": "feedback_recorded",
+        "entry": entry.model_dump(mode="json"),
+        **injury_check(storage),
+    }
 
 
 @mcp.tool()

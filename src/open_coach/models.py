@@ -170,9 +170,21 @@ class TrainingConstraints(BaseModel):
     max_sessions_per_week: int | None = None
     max_weekday_minutes: int | None = None
     max_weekend_minutes: int | None = None
+    # Per-day caps ({"monday": 45}) — override the weekday / weekend cap for that day.
+    max_minutes_by_day: dict[str, int] = Field(default_factory=dict)
     injuries: list[InjuryRecord] = Field(default_factory=list)
     notes: str | None = None
     updated_at: datetime | None = None
+
+    @field_validator("max_minutes_by_day")
+    @classmethod
+    def _weekday_keys(cls, value: dict[str, int]) -> dict[str, int]:
+        days = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"}
+        normalised = {k.strip().lower(): v for k, v in value.items()}
+        unknown = sorted(set(normalised) - days)
+        if unknown:
+            raise ValueError(f"Unknown weekday(s) {unknown}; use monday … sunday")
+        return normalised
 
 
 class WorkoutFeedback(BaseModel):
@@ -224,6 +236,7 @@ class PlannedWorkout(BaseModel):
     actual_distance_m: float | None = None
     actual_duration_s: float | None = None
     actual_intensity: Intensity | None = None
+    adjustment_note: str | None = None  # why the session was changed (adjust_planned_workout)
     skipped_reason: str | None = None
 
 

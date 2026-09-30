@@ -46,8 +46,9 @@ Call `get_coaching_context` (same data as the `coach://context` resource) for pr
 ```
 
 ### 5. Follow-up
-- If the athlete accepts an adjustment → `record_workout_feedback`
+- If the athlete accepts an adjustment → apply it to the plan with `adjust_planned_workout(workout_date, workout_type?, description?, target_distance_m?, target_duration_s?, target_intensity?, reason=...)` (rest day: `workout_type="rest"`), then carry out its `next_steps` (unschedule the old watch workout for that date, push the new one only if it carries quality).
 - If session is skipped → `update_workout_completion(completed=False, skipped_reason=...)`
+- After the session → `record_workout_feedback`; it returns `active_injuries` when some are open — check in on each one.
 
 ## Tone
 
