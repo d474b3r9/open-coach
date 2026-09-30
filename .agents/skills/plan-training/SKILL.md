@@ -1,12 +1,26 @@
 ---
 name: plan-training
-version: 1.0.0
-description: Generate or update a periodized training plan for a target race (calls generate_training_plan, sync_upcoming_workouts, update_workout_completion). Use when the user asks to create a plan, prepare for a race, or update plan after an unexpected event.
+description: Generates or updates a periodized training plan for a target race (base, build, peak, taper) and syncs its quality sessions to the watch. Use when the athlete asks for a plan, prepares a race, or reports an event that changes the plan (injury, holiday, missed week) — "build me a marathon plan", "prépare-moi un plan", "adapte mon plan".
+compatibility: Requires the open-coach MCP server (watch data, training plans, coaching guides).
+metadata:
+  version: "1.0.0"
 ---
 
 # plan-training
 
-MCP workflow to generate / update a training plan and sync it with Garmin. For the coaching rules (Daniels, 80/20, phase structure, test placement), see the `entraineur` methodology (`get_coaching_guide("methodology")`). For the DSL conventions of pushed workouts, see `get_coaching_guide("dsl-conventions")`.
+Workflow (tools of the open-coach MCP server) to generate / update a training plan and sync it with the watch. For the coaching rules (Daniels, 80/20, phase structure, test placement), see the `entraineur` methodology (`get_coaching_guide("methodology")`). For the DSL conventions of pushed workouts, see `get_coaching_guide("dsl-conventions")`.
+
+Copy this checklist and tick it off as you go:
+
+```
+Plan progress:
+- [ ] 1. Context read (get_coaching_context): profile, goals, constraints, today
+- [ ] 2. Missing data asked (days, time caps, injuries)
+- [ ] 3. Plan generated (generate_training_plan)
+- [ ] 4. Plan presented and confirmed by the athlete
+- [ ] 5. Quality sessions synced to the watch; easy runs reported as left unpushed
+- [ ] 6. next_steps from the tool results carried out (journal, sync)
+```
 
 ## Steps
 

@@ -1,12 +1,14 @@
 ---
 name: daily-check
-version: 1.0.0
-description: Daily recovery check-in to decide if today's session proceeds, is modified, or skipped (calls get_recovery_status, get_adaptive_recommendation). Use when the user asks "should I train today", "comment je suis aujourd'hui".
+description: Runs the daily recovery check-in (HRV, sleep, stress, training load, recent feedback) and decides whether today's session proceeds, is adjusted or becomes a rest day. Use when the athlete asks whether to train today — "should I train today", "how am I today", "comment je suis aujourd'hui", "je m'entraîne aujourd'hui ?".
+compatibility: Requires the open-coach MCP server (watch data, training plans, coaching guides).
+metadata:
+  version: "1.0.0"
 ---
 
 # daily-check
 
-MCP workflow for the daily recovery check-in + recommendation. For the overload thresholds and the downgrade logic, see the `entraineur` methodology → `get_coaching_guide("methodology")` § "Post-race recovery" and § "Safeguards".
+Workflow (tools of the open-coach MCP server) for the daily recovery check-in + recommendation. For the overload thresholds and the downgrade logic, see the `entraineur` methodology → `get_coaching_guide("methodology")` § "Post-race recovery" and § "Safeguards".
 
 ## Steps
 

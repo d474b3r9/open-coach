@@ -1,8 +1,9 @@
 """Guards for running the coach from any MCP client, not only Claude Code.
 
 Operating rules, workflows and methodology must reach clients that never read
-CLAUDE.md or load skills: through the server instructions, MCP prompts,
-``coach://guide/{name}`` and tools mirroring the ``coach://`` resources.
+CLAUDE.md or load skills: through the server instructions (with the guide
+catalog), MCP prompts, ``skill://`` resources (SEP-2640), the catalog in the
+``get_coaching_guide`` description, and tools mirroring ``coach://`` resources.
 """
 
 from __future__ import annotations
@@ -11,7 +12,15 @@ import json
 
 from pydantic import TypeAdapter
 
-from open_coach.guides import GUIDE_NAMES, METHODOLOGY_TOPICS, WORKFLOWS, load_guide, skills_dir
+from open_coach.guides import (
+    GUIDE_NAMES,
+    METHODOLOGY_TOPICS,
+    SERVED_SKILLS,
+    WORKFLOWS,
+    load_guide,
+    short_description,
+    skills_dir,
+)
 from open_coach.models import TrainingPlan
 from open_coach.server import mcp
 from open_coach.tools._common import compact_payload, plan_update_next_steps
@@ -33,7 +42,7 @@ def test_guide_names_cover_topics_and_workflows():
 
 
 def test_every_workflow_skill_on_disk_is_exposed():
-    """A new .claude/skills/<workflow>/ must be added to WORKFLOWS (and GuideName)."""
+    """A new .agents/skills/<workflow>/ must be added to WORKFLOWS (and GuideName)."""
     root = skills_dir()
     assert root is not None
     on_disk = {
@@ -86,6 +95,30 @@ async def test_prompt_renders_workflow_and_request():
     assert "tired today" in text
 
 
+async def test_skills_served_as_skill_resources():
+    """SEP-2640 URIs: skill://<name>/SKILL.md, plus supporting files through a template."""
+    uris = {str(r.uri) for r in await mcp.list_resources()}
+    for name in SERVED_SKILLS:
+        assert f"skill://{name}/SKILL.md" in uris, name
+    assert "skill://extract-transcript/SKILL.md" not in uris
+    result = await mcp.read_resource("skill://entraineur/references/methodology.md")
+    assert "Daniels" in str(result)
+
+
+async def test_tool_description_embeds_the_catalog():
+    """skills-mcp pattern: the catalog in an always-loaded tool description."""
+    tool = await mcp.get_tool("get_coaching_guide")
+    assert tool is not None
+    assert tool.description
+    for name in GUIDE_NAMES:
+        assert f"- {name}: " in tool.description, name
+
+
+def test_short_description_drops_trigger_examples():
+    desc = 'Does X. Use when the user asks for X — "do x", "fais x".'
+    assert short_description(desc) == "Does X. Use when the user asks for X."
+
+
 # ── Server instructions ───────────────────────────────────────────────────────
 
 
@@ -100,8 +133,11 @@ def test_instructions_carry_the_operating_rules():
         "orphan",
         "raw watch name",
         "language",
+        "skill://",
     ):
         assert needle in text, needle
+    for name in GUIDE_NAMES:
+        assert f"- {name}: " in text, name
 
 
 # ── Resource mirrors ──────────────────────────────────────────────────────────

@@ -8,8 +8,9 @@ Open Coach is a standard **stdio MCP server**. Claude Code is the reference clie
 |---|---|---|
 | Operating rules (read context first, methodology, watch sync, activity analysis, safety) | MCP server **instructions**, sent at connection | nothing |
 | Athlete context, active plan, archived plans | Tools `get_coaching_context`, `get_active_plan`, `get_archived_plan` (also as `coach://` resources) | tool calling |
-| Coaching methodology and workflows | Tool `get_coaching_guide(name)`, MCP **prompts** `onboard`, `plan-training`, `push-workout`, `analyze-run`, `daily-check`, `race-ready`, resource `coach://guide/{name}` | tool calling (prompts / resources are a bonus) |
+| Coaching methodology and workflows | Tool `get_coaching_guide(name)`, MCP **prompts** `onboard`, `plan-training`, `push-workout`, `analyze-run`, `daily-check`, `race-ready`, resources `skill://<name>/SKILL.md` (MCP Skills extension URIs); the catalog sits in the server instructions and in the tool description | tool calling (prompts / resources are a bonus) |
 | Follow-up actions (watch sync, training journal, Drive sync) | `next_steps` field in the results of plan-changing tools | tool calling |
+| Skills as native skills (repo open in the client) | `.agents/skills/` ([Agent Skills](https://agentskills.io) standard): Codex, Gemini CLI, Cursor, Copilot; Claude Code via the `.claude/skills` symlink | file access |
 | Repo conventions for coding agents | `AGENTS.md` (read natively by Codex, Cursor, GitHub Copilot; Gemini CLI via `.gemini/settings.json`; Claude Code via `CLAUDE.md` → `@AGENTS.md`) | file access |
 
 Clients that do not read resources or prompts lose nothing: the tools return the same content. Clients without file access (desktop and web chats) skip the markdown athlete profile and journal in `plans/` and work from `get_coaching_context`.

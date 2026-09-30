@@ -1,12 +1,26 @@
 ---
 name: push-workout
-version: 1.0.0
-description: Build a structured workout (DSLWorkout JSON) and push it to the Garmin calendar (calls build_and_push_workout, or upload_workout + schedule_watch_workout). Use when the user asks to schedule a specific session on a specific date.
+description: Builds one structured workout (DSL) with VDOT-based pace targets and schedules it on the watch calendar. Use when the athlete asks to put a specific session on the watch for a given date — "push Tuesday's session to my watch", "envoie la séance sur ma montre".
+compatibility: Requires the open-coach MCP server (watch data, training plans, coaching guides).
+metadata:
+  version: "1.0.0"
 ---
 
 # push-workout
 
-MCP workflow to build a `DSLWorkout` and push it to the watch. **The strict rules for building the DSL** (lap_button warmup, easy run = 1 block, ±5 s pace target, warmup ≥ 15 min) live in the `entraineur` methodology → `get_coaching_guide("dsl-conventions")` — load them before generating a workout.
+Workflow (tools of the open-coach MCP server) to build a `DSLWorkout` and push it to the watch. **The strict rules for building the DSL** (lap_button warmup, easy run = 1 block, ±5 s pace target, warmup ≥ 15 min) live in the `entraineur` methodology → `get_coaching_guide("dsl-conventions")` — load them before generating a workout. Session templates, pace tables and common mistakes: [references/conventions.md](references/conventions.md).
+
+Copy this checklist and tick it off as you go:
+
+```
+Push progress:
+- [ ] 1. Context read (get_coaching_context) and paces taken from get_training_zones
+- [ ] 2. Session type, date and intensity identified
+- [ ] 3. DSL built following dsl-conventions (lap_button warmup/cooldown, ±5 s pace window)
+- [ ] 4. Checked: ≤ 50 steps, repeat ≤ 99, paces match VDOT, date free
+- [ ] 5. Existing workout on that date checked with list_watch_workouts
+- [ ] 6. Pushed (build_and_push_workout) and summary given to the athlete
+```
 
 ## Steps
 

@@ -8,7 +8,12 @@ Keep it short: it is paid for in tokens on every conversation.
 
 from __future__ import annotations
 
+from open_coach.guides import catalog_text
 from open_coach.tools._common import WATCH_SYNC_STEP
+
+# Tier 1 of progressive disclosure (Agent Skills): name + what/when of every
+# guide, so any client's model knows which guide to load for a request.
+GUIDE_CATALOG = catalog_text() or "- (guides not installed)"
 
 SERVER_INSTRUCTIONS = f"""\
 Open Coach: an AI running coach backed by the athlete's watch data. It analyzes \
@@ -21,14 +26,15 @@ How to work:
 1. Start every coaching conversation with get_coaching_context (today's date, \
 profile, live training load, goals, constraints, active plan). Never guess today's \
 date, the current plan week or the athlete's paces.
-2. Before any coaching decision (plan, session, pace, recovery advice), read \
-get_coaching_guide("rules") and the topic it points to (methodology, \
-dsl-conventions, anti-patterns). Derive paces from VDOT (get_training_zones), \
-never from memory.
-3. Step-by-step workflows are available as MCP prompts and through \
-get_coaching_guide: onboard, plan-training, push-workout, analyze-run, \
-daily-check, race-ready. Load the matching one before acting.
-4. When a tool returns next_steps, carry them out right away without asking.
+2. Coaching guides (Agent Skills) hold the methodology and step-by-step \
+workflows. When a request matches a guide below, load it BEFORE acting with \
+get_coaching_guide(name) (or read skill://<name>/SKILL.md; workflows are also MCP \
+prompts). Load `rules` before any coaching decision (plan, session, pace, recovery \
+advice). Derive paces from VDOT (get_training_zones), never from memory.
+3. When a tool returns next_steps, carry them out right away without asking.
+
+Coaching guides:
+{GUIDE_CATALOG}
 
 Watch sync after a plan change: {WATCH_SYNC_STEP}
 

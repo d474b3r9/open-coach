@@ -4,7 +4,7 @@ This directory holds **templates** for the personal config files consumed by the
 
 ## Why this split exists
 
-`.claude/hooks/` and `.claude/skills/` are versioned and **must remain free of personal data** (race names, targeted paces, athlete constraints, file paths specific to one user). Without that rule, a fork of this repo inherits someone else's training plan.
+`.claude/hooks/` and `.agents/skills/` are versioned and **must remain free of personal data** (race names, targeted paces, athlete constraints, file paths specific to one user). Without that rule, a fork of this repo inherits someone else's training plan.
 
 The hooks read `.claude/local/hooks.config.json` at runtime. If the file is absent or a key is missing, each hook falls back to safe generic defaults (see `CONTRIBUTING.md` § "Data separation policy" for the full rule).
 

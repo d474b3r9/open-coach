@@ -32,7 +32,7 @@ Open Coach is licensed under the **AGPL-3.0**: it stays free for everyone, and a
 
 ### Where things go
 
-- Coaching rules → `.claude/skills/entraineur/` (generic methodology, never one athlete's data)
+- Coaching rules → `.agents/skills/entraineur/` (generic methodology, never one athlete's data)
 - MCP tools → `src/open_coach/tools/` (see `AGENTS.md` § "Adding a new MCP tool or resource")
 - A new watch platform → `src/open_coach/providers/` (see `AGENTS.md` § "Watch providers"; `tests/test_provider_contract.py` is the contract to pass)
 - Text the code shows to athletes → `src/open_coach/i18n.py`, in English and French
@@ -105,11 +105,11 @@ See `AGENTS.md` § "Adding a new MCP tool or resource" — concise 5-step recipe
 
 ### Adding a coaching rule
 
-Methodology rules live in `.claude/skills/entraineur/`. Add the rule to `SKILL.md` (numbered section) or to the relevant file under `references/`. Keep the rule generic: athlete-specific data belongs in `plans/athlete-profile.md`, read at runtime. Run `uv run python scripts/audit_docs.py` before committing.
+Methodology rules live in `.agents/skills/entraineur/`. Add the rule to `SKILL.md` (numbered section) or to the relevant file under `references/`. Keep the rule generic: athlete-specific data belongs in `plans/athlete-profile.md`, read at runtime. Run `uv run python scripts/audit_docs.py` before committing.
 
 ### Adding a workflow skill
 
-Workflow skills live in `.claude/skills/<name>/SKILL.md`; add the name to `WORKFLOWS` and `GuideName` in `src/open_coach/guides.py` so it is also served as an MCP prompt (`tests/test_llm_portability.py` fails otherwise). They reference the `entraineur` skill for rules and call MCP tools to perform the work. Trigger phrases (`description:` frontmatter) should be non-overlapping with `entraineur` and with each other. Keep them client-neutral: call tools (`get_coaching_context`, `get_coaching_guide("…")`) rather than reading a `coach://` resource only, and never rely on a Claude-only feature — the same text is served to every MCP client.
+Workflow skills live in `.agents/skills/<name>/SKILL.md` and follow the [Agent Skills specification](https://agentskills.io/specification) (authoring rules in `AGENTS.md` § "Skills / guides architecture", checked by `tests/test_skills_spec.py`); add the name to `WORKFLOWS` and `GuideName` in `src/open_coach/guides.py` so it is also served as an MCP prompt (`tests/test_llm_portability.py` fails otherwise). They reference the `entraineur` skill for rules and call MCP tools to perform the work. Trigger phrases (`description:` frontmatter) should be non-overlapping with `entraineur` and with each other. Keep them client-neutral: call tools (`get_coaching_context`, `get_coaching_guide("…")`) rather than reading a `coach://` resource only, and never rely on a Claude-only feature — the same text is served to every MCP client.
 
 ## Commit style
 

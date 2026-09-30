@@ -1,5 +1,17 @@
 # Coaching methodology — universal principles
 
+## Contents
+
+- 1. Daniels VDOT
+- 2. 80/20
+- 3. CTL progression +5/week max
+- 4. Recovery -25 % volume every 4 cycles
+- 5. Standard plan structure
+- 6. Tests and milestones in a plan
+- 7. Preparing a 10K test inside a marathon block
+- 8. Post-race recovery
+- 9. Safeguards (when to downgrade / cancel / re-target)
+
 Reference loaded by the `entraineur` skill when a methodology rule must be applied.
 
 ## 1. Daniels VDOT

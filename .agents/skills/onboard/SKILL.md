@@ -1,12 +1,14 @@
 ---
 name: onboard
-version: 1.0.0
-description: Initialize the athlete profile by scanning Garmin history (VDOT, PRs, current load). Use only on first connection or when the user explicitly asks to (re)setup the profile.
+description: Initializes the athlete profile from the watch history (VDOT, personal records, training pattern, current load), then records goals, constraints and output language. Use on first connection or when the athlete explicitly asks to set up or reset the profile — "onboarding", "set up my profile", "configure mon profil".
+compatibility: Requires the open-coach MCP server (watch data, training plans, coaching guides).
+metadata:
+  version: "1.0.0"
 ---
 
 # Onboard
 
-MCP workflow to bootstrap the athlete profile. For the coaching rules to apply afterwards, see the `entraineur` methodology (`get_coaching_guide("rules")`).
+Workflow (tools of the open-coach MCP server) to bootstrap the athlete profile. For the coaching rules to apply afterwards, see the `entraineur` methodology (`get_coaching_guide("rules")`).
 
 ## Steps
 
