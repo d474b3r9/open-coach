@@ -1,6 +1,6 @@
 # Fiche coureur — template
 
-> Remplace chaque champ `<...>` par tes propres valeurs. Le skill `entraineur` lit ce fichier au début de chaque session de coaching et applique les règles qu'il contient. **Ne commite pas ce fichier** : il vit dans le dossier `plans/`, ignoré par git.
+> Remplace chaque champ `<...>` par tes propres valeurs. Le skill `coaching-rules` lit ce fichier au début de chaque session de coaching et applique les règles qu'il contient. **Ne commite pas ce fichier** : il vit dans le dossier `plans/`, ignoré par git.
 
 ## 1. Profil
 
@@ -34,7 +34,7 @@
 
 ## 3. Calendrier de courses
 
-> Liste tes courses cibles. Le skill `entraineur` se base sur ces dates pour structurer les plans (phases base/build/peak/taper, placement des tests, pauses post-course).
+> Liste tes courses cibles. Le skill `coaching-rules` se base sur ces dates pour structurer les plans (phases base/build/peak/taper, placement des tests, pauses post-course).
 
 | Date | Distance | Course | Statut | Cible chrono |
 |---|---|---|---|---|
@@ -44,7 +44,7 @@ A = course objectif principal, B = secondaire, rep = répétition générale.
 
 ## 4. Contraintes physiques
 
-> Liste les contraintes structurelles (anciennes blessures, fragilités, limitations). Le skill `entraineur` adapte les séances en conséquence (pas de côtes si un tendon est fragile, etc.).
+> Liste les contraintes structurelles (anciennes blessures, fragilités, limitations). Le skill `coaching-rules` adapte les séances en conséquence (pas de côtes si un tendon est fragile, etc.).
 
 - **Antécédents blessures** : `<blessure, côté, année>`
 - **Zones fragiles** : `<zones à surveiller>`
@@ -74,7 +74,7 @@ A = course objectif principal, B = secondaire, rep = répétition générale.
 
 ## 6. Préférences nutrition course
 
-> Le skill `entraineur` propose des plans gels/hydratation alignés sur ces préférences sans les remettre en cause à chaque session.
+> Le skill `coaching-rules` propose des plans gels/hydratation alignés sur ces préférences sans les remettre en cause à chaque session.
 
 - **Format gel préféré** : `<gel | liquide | barre>` — un seul format
 - **Gel starter** : `<oui, H-x | non>`
@@ -101,7 +101,7 @@ A = course objectif principal, B = secondaire, rep = répétition générale.
 
 ## 8. Anti-patterns personnels (préférences figées)
 
-> Le skill `entraineur` ne doit jamais re-proposer ces choses :
+> Le skill `coaching-rules` ne doit jamais re-proposer ces choses :
 
 - ❌ `<chose à ne jamais re-proposer>`
 - ❌ `<...>`

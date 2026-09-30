@@ -8,7 +8,7 @@ metadata:
 
 # daily-check
 
-Workflow (tools of the open-coach MCP server) for the daily recovery check-in + recommendation. For the overload thresholds and the downgrade logic, see the `entraineur` methodology → `get_coaching_guide("methodology")` § "Post-race recovery" and § "Safeguards".
+Workflow (tools of the open-coach MCP server) for the daily recovery check-in + recommendation. For the overload thresholds and the downgrade logic, see the `coaching-rules` methodology → `get_coaching_guide("methodology")` § "Post-race recovery" and § "Safeguards".
 
 ## Steps
 

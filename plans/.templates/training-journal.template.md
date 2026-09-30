@@ -1,6 +1,6 @@
 # Training journal — template
 
-> Append-only log read at the start of each session by the skill `entraineur`. **Always append at the bottom of each section, never rewrite past entries.** The history stays intact even when a decision is revised — append a new entry that supersedes the old one. **Do not commit this file** — it lives in the gitignored `plans/` directory.
+> Append-only log read at the start of each session by the skill `coaching-rules`. **Always append at the bottom of each section, never rewrite past entries.** The history stays intact even when a decision is revised — append a new entry that supersedes the old one. **Do not commit this file** — it lives in the gitignored `plans/` directory.
 
 ## Entry format
 

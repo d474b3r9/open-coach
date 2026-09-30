@@ -53,6 +53,10 @@ Gemini CLI, VS Code, Claude Desktop…), not only Claude Code.
 
 ### Changed
 
+- The methodology skill is renamed `entraineur` → `coaching-rules`
+  (`.agents/skills/coaching-rules/`, `skill://coaching-rules/...`), so every
+  skill and guide name is English. The MCP guide name stays `rules`.
+
 - `save_training_plan` accepts the plan as an object (full JSON schema
   published) or as a JSON string; `upload_workout` / `build_and_push_workout`
   accept a `DSLWorkout` object as well as JSON / text DSL.

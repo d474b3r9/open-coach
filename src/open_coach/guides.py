@@ -21,10 +21,10 @@ import yaml
 # Methodology topics → file path relative to the skills directory. The
 # reference files have no frontmatter, so their catalog description lives here.
 METHODOLOGY_TOPICS: dict[str, str] = {
-    "rules": "entraineur/SKILL.md",
-    "methodology": "entraineur/references/methodology.md",
-    "dsl-conventions": "entraineur/references/dsl-conventions.md",
-    "anti-patterns": "entraineur/references/anti-patterns.md",
+    "rules": "coaching-rules/SKILL.md",
+    "methodology": "coaching-rules/references/methodology.md",
+    "dsl-conventions": "coaching-rules/references/dsl-conventions.md",
+    "anti-patterns": "coaching-rules/references/anti-patterns.md",
 }
 _TOPIC_DESCRIPTIONS: dict[str, str] = {
     "methodology": (
@@ -50,7 +50,7 @@ WORKFLOWS: tuple[str, ...] = (
 
 # Skills served as ``skill://<name>/…`` resources (SEP-2640). extract-transcript
 # is left out: it needs a shell and only makes sense inside the repository.
-SERVED_SKILLS: tuple[str, ...] = ("entraineur", *WORKFLOWS)
+SERVED_SKILLS: tuple[str, ...] = ("coaching-rules", *WORKFLOWS)
 
 GuideName = Literal[
     "rules",
@@ -84,7 +84,7 @@ class Guide:
 def skills_dir() -> Path | None:
     """First existing guides directory, or None when the guides are not shipped."""
     for candidate in _CANDIDATE_DIRS:
-        if (candidate / "entraineur" / "SKILL.md").is_file():
+        if (candidate / "coaching-rules" / "SKILL.md").is_file():
             return candidate
     return None
 

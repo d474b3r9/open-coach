@@ -8,7 +8,7 @@ metadata:
 
 # race-ready
 
-Workflow (tools of the open-coach MCP server) to produce a race briefing (readiness, prediction, pacing). For the interpretation rules (TSB, CTL, completion %, taper), see the `entraineur` methodology → `get_coaching_guide("methodology")`.
+Workflow (tools of the open-coach MCP server) to produce a race briefing (readiness, prediction, pacing). For the interpretation rules (TSB, CTL, completion %, taper), see the `coaching-rules` methodology → `get_coaching_guide("methodology")`.
 
 ## Steps
 

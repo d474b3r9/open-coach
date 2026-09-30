@@ -1,12 +1,12 @@
 ---
-name: entraineur
+name: coaching-rules
 description: Coaching methodology rules for running — Daniels VDOT paces, 80/20 intensity, periodization, recovery, nutrition, anti-patterns and watch-workout (DSL) conventions. Use before any coaching decision (plan, session, pace, recovery advice) and when the user asks whether something follows the rules — "is this VDOT-correct?", "règle", "méthodo", "principe coaching", "est-ce conforme à la méthodo ?". Holds rules only; the workflow skills (onboard, plan-training, push-workout, analyze-run, daily-check, race-ready) perform the actions.
 compatibility: Requires the open-coach MCP server (watch data, training plans, coaching guides).
 metadata:
   version: "3.1.0"
 ---
 
-# Skill `entraineur` — coaching rules (reference)
+# Skill `coaching-rules` — coaching rules (reference)
 
 Always answer in the athlete's language (the language they write in; `profile.language` from `coach://context` sets the language of text the code generates).
 

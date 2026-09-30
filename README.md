@@ -16,7 +16,7 @@ Turn your watch into an AI-coached training stack. **Open Coach** (formerly `gar
 ```mermaid
 flowchart LR
     User[You] -->|"ask"| Client[Any MCP client<br/>Claude Code, Cursor, Codex, Gemini CLI…]
-    Client -->|get_coaching_guide / skill| Entraineur[entraineur<br/>methodology rules]
+    Client -->|get_coaching_guide / skill| Rules[coaching-rules<br/>methodology rules]
     Client -->|MCP tools + prompts| Server[FastMCP server]
     Server -->|serves| Entraineur
     Server <-->|OAuth2| Garmin[Garmin Connect]
@@ -27,7 +27,7 @@ flowchart LR
 ```
 
 Two layers of intelligence:
-- **`entraineur` skill** — coaching methodology (Daniels VDOT, 80/20, periodization, recovery, anti-patterns, DSL workout conventions). Pure rules, no I/O. Read by the AI before every coaching decision — natively as a skill in Claude Code, through the `get_coaching_guide` tool / MCP prompts everywhere else.
+- **`coaching-rules` skill** — coaching methodology (Daniels VDOT, 80/20, periodization, recovery, anti-patterns, DSL workout conventions). Pure rules, no I/O. Read by the AI before every coaching decision — natively as a skill in Claude Code, through the `get_coaching_guide` tool / MCP prompts everywhere else.
 - **MCP server** — data plane. Pure-computation modules (`vdot.py`, `training_load.py`, `zones.py`, `plan_generator.py`, `race_predictor.py`, `recovery_monitor.py`) sit behind FastMCP tools that the AI calls. The server also sends its operating rules (read the context first, watch-sync policy, activity-analysis rules) as MCP instructions, so every client follows them.
 
 ## Requirements
@@ -196,7 +196,7 @@ Open your MCP client in this repo and try:
 
 Prompts work just as well in French (*"Analyse mes 5 dernières séances"*) — the coach answers in the language you use.
 
-All workflows live in [`.agents/skills/`](.agents/skills/) (one per use case: `onboard`, `plan-training`, `push-workout`, `analyze-run`, `daily-check`, `race-ready`), next to the methodology rules in [`.agents/skills/entraineur/`](.agents/skills/entraineur/). They follow the [Agent Skills](https://agentskills.io) open standard, so Codex, Gemini CLI, Cursor, Copilot and Claude Code (through the `.claude/skills` symlink) load them natively; any other MCP client gets them from the server as `skill://` resources, MCP prompts of the same name (e.g. `/plan-training`) or the `get_coaching_guide` tool. Standards followed and known limits (Windows symlink, guide loading left to the model): [`docs/mcp-clients.md`](docs/mcp-clients.md#skills-standards-followed-and-known-limits).
+All workflows live in [`.agents/skills/`](.agents/skills/) (one per use case: `onboard`, `plan-training`, `push-workout`, `analyze-run`, `daily-check`, `race-ready`), next to the methodology rules in [`.agents/skills/coaching-rules/`](.agents/skills/coaching-rules/). They follow the [Agent Skills](https://agentskills.io) open standard, so Codex, Gemini CLI, Cursor, Copilot and Claude Code (through the `.claude/skills` symlink) load them natively; any other MCP client gets them from the server as `skill://` resources, MCP prompts of the same name (e.g. `/plan-training`) or the `get_coaching_guide` tool. Standards followed and known limits (Windows symlink, guide loading left to the model): [`docs/mcp-clients.md`](docs/mcp-clients.md#skills-standards-followed-and-known-limits).
 
 For an in-depth walkthrough (architecture rationale, extension guide, FAQ), see [`docs/getting-started.md`](docs/getting-started.md).
 

@@ -8,7 +8,7 @@ metadata:
 
 # analyze-run
 
-Workflow (tools of the open-coach MCP server) to analyse a completed run. For the interpretation rules (zones, drift, VDOT recalibration), see the `entraineur` methodology → `get_coaching_guide("methodology")`.
+Workflow (tools of the open-coach MCP server) to analyse a completed run. For the interpretation rules (zones, drift, VDOT recalibration), see the `coaching-rules` methodology → `get_coaching_guide("methodology")`.
 
 ## Steps
 

@@ -10,7 +10,7 @@ heuristic turned "10 km dont 15 min @ M" ("dont" = French for "including")
 into a single 7.5 km block at M pace —
 that is exactly what this module must never do again.
 
-Conventions applied (entraineur/references/dsl-conventions.md):
+Conventions applied (coaching-rules/references/dsl-conventions.md):
 - Rule A: easy / long_run / recovery = ONE distance block, pace window, no
   warmup/cooldown.
 - Rule B: quality sessions use lap_button warmup/cooldown.

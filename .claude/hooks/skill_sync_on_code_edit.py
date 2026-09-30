@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-PostToolUse hook — reminds to sync the entraineur skill when a coaching module changes.
+PostToolUse hook — reminds to sync the coaching-rules skill when a coaching module changes.
 
 Fired after Edit/Write. If the edited file is a Python module implementing coaching
 logic (vdot, training_load, zones, plan_generator, race_predictor, etc.), emits a
-reminder to update `.agents/skills/entraineur/SKILL.md` if the coaching behaviour
+reminder to update `.agents/skills/coaching-rules/SKILL.md` if the coaching behaviour
 changes (new rule, revised calculation, adjusted pace range).
 
 NEVER duplicate the code in the skill — the skill describes the principles, the code
@@ -56,12 +56,12 @@ def main() -> None:
         return
 
     context = (
-        "⚙️ **`entraineur` skill reminder** — `"
+        "⚙️ **`coaching-rules` skill reminder** — `"
         f"{fp.name}"
         "` (coaching logic) was just modified.\n\n"
         "If the **coaching behaviour changes** (new rule, revised pace, modified VDOT "
         "calculation, different default parameter), then **update "
-        "`.agents/skills/entraineur/SKILL.md`** so the skill reflects the code.\n\n"
+        "`.agents/skills/coaching-rules/SKILL.md`** so the skill reflects the code.\n\n"
         "**Anti-duplication rule**: do NOT duplicate the code in the skill. The skill describes "
         'the **principles** ("rule X says Y"), the code implements them. If the code changes '
         "to fix a bug without changing the coaching behaviour, no need to touch the "
