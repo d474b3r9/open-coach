@@ -17,7 +17,7 @@ Workflow (tools of the open-coach MCP server) to bootstrap the athlete profile. 
 3. Set the output language from the language the user writes in → `update_athlete_profile(language="en" | "fr")`. It drives the text the coach generates itself (plan markdown, session descriptions); the conversation always follows the user's language.
 4. Present results: VDOT, personal records, training patterns, current CTL/ATL/TSB
 5. Ask the user about training goals → `set_training_goal`
-6. Ask about constraints (available days, time limits) → `set_training_constraints`
+6. Ask about constraints (available days, time limits — per day too, e.g. "45 min on Mondays" → `max_minutes_by_day={"monday": 45}`) → `set_training_constraints`
 7. Summarize the complete profile
 
 ## Edge cases

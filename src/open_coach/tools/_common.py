@@ -143,6 +143,35 @@ def plan_update_next_steps(*, watch_sync: bool, confirm_first: bool = False) -> 
     return steps
 
 
+def injury_check(storage: CoachStorage) -> dict[str, Any]:
+    """Active injuries + the follow-up step, for tools that review a session.
+
+    Returns ``{}`` when no injury is active; otherwise ``active_injuries`` and a
+    ``next_steps`` entry asking the coach to check in on each of them.
+    """
+    constraints = storage.load_constraints()
+    active = [i for i in (constraints.injuries if constraints else []) if not i.resolved]
+    if not active:
+        return {}
+    names = ", ".join(f"{i.body_part} ({i.severity})" for i in active)
+    return {
+        "active_injuries": [
+            {
+                "body_part": i.body_part,
+                "severity": i.severity,
+                "since": i.date_reported.isoformat(),
+                "description": i.description,
+            }
+            for i in active
+        ],
+        "next_steps": [
+            f"Injury check-in: ask how each active injury felt during this session ({names}). "
+            "Healed → resolve_injury; better or worse → report_injury with the new severity; "
+            "adapt the next sessions if it hurt."
+        ],
+    }
+
+
 DEFAULT_THRESHOLD_HR = 170  # used when the profile has no threshold HR
 # CTL is a 42-day EWMA seeded at 0: a 90-day window still understates it by
 # ~20 %, 180 days is within ~2 % of a full year (measured on a real history).

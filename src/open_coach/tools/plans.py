@@ -4,6 +4,7 @@ Tools:
     generate_training_plan  — Build a periodized plan from athlete profile + goal
     sync_upcoming_workouts  — Push next N weeks to the watch calendar (idempotent)
     update_workout_completion — Mark a planned workout as done or skipped
+    adjust_planned_workout  — Change one planned session (daily-check adjustment, swap, rest)
 """
 
 from __future__ import annotations
@@ -22,10 +23,11 @@ from open_coach.plan_renderer import (
     write_plan_markdown,
 )
 from open_coach.server import mcp
-from open_coach.sports.base import Volume
+from open_coach.sports.base import NON_SPORT_WORKOUT_TYPES, Intensity, Volume
 from open_coach.sports.registry import get_sport
 from open_coach.tools._common import (
     get_watch,
+    injury_check,
     invalid_date_error,
     load_profile_live,
     parse_iso_date,
@@ -347,11 +349,99 @@ async def update_workout_completion(
     except Exception as exc:
         logger.warning("Failed to refresh markdown copy of plan: %s", exc)
 
+    injuries = injury_check(storage)
     return {
         "status": "updated",
         "week": week_number,
         "date": workout_date,
         "completed": completed,
         "week_completion_rate": week.completion_rate,
-        "next_steps": plan_update_next_steps(watch_sync=False),
+        **({"active_injuries": injuries["active_injuries"]} if injuries else {}),
+        "next_steps": injuries.get("next_steps", []) + plan_update_next_steps(watch_sync=False),
+    }
+
+
+@mcp.tool()
+async def adjust_planned_workout(
+    workout_date: str,
+    workout_type: str | None = None,
+    description: str | None = None,
+    target_distance_m: float | None = None,
+    target_duration_s: float | None = None,
+    target_intensity: Intensity | None = None,
+    reason: str | None = None,
+    ctx: Context | None = None,
+) -> dict:
+    """Change one planned session of the active plan; only provided fields change.
+
+    Use it to apply what the athlete accepted: a daily-check adjustment (reduce
+    intensity or volume, swap to easy, rest day), or a session moved by hand.
+    The watch is NOT updated here: follow the returned next_steps (unschedule
+    the old watch workout for that date, push the new one if it carries quality).
+
+    Changing ``workout_type`` without a new ``target_intensity`` clears the old
+    intensity target (it belonged to the old session). A rest / strength
+    session drops its distance, duration and intensity targets.
+
+    Args:
+        workout_date: Date of the session (YYYY-MM-DD); must not be completed yet.
+        workout_type: New session type (a type of the plan's sport, or rest / strength).
+        description: New description (keep the plan's grammar so it can be pushed).
+        target_distance_m: New target distance in metres.
+        target_duration_s: New target duration in seconds.
+        target_intensity: New target, e.g. {"kind": "pace_sec_per_km", "value": 330}.
+        reason: Why (e.g. "recovery red: HRV -12%"), kept on the session.
+    """
+    assert ctx is not None
+    storage = ctx.lifespan_context["storage"]
+    plan = storage.load_active_plan()
+    if plan is None:
+        return {"error": "No active plan."}
+
+    target_date = parse_iso_date(workout_date)
+    if target_date is None:
+        return invalid_date_error("workout_date", workout_date)
+    found = next(
+        ((week, w) for week in plan.weeks for w in week.workouts if w.date == target_date),
+        None,
+    )
+    if found is None:
+        return {"error": f"No planned session on {workout_date}."}
+    week, workout = found
+    if workout.completed:
+        return {"error": f"The session on {workout_date} is already completed."}
+
+    before = {"type": workout.workout_type, "description": workout.description}
+    if workout_type is not None and workout_type != workout.workout_type:
+        workout.workout_type = workout_type
+        workout.target_intensity = None
+    if workout.workout_type.casefold() in NON_SPORT_WORKOUT_TYPES:
+        workout.target_distance_m = None
+        workout.target_duration_s = None
+        workout.target_intensity = None
+    if description is not None:
+        workout.description = description
+    if target_distance_m is not None:
+        workout.target_distance_m = target_distance_m
+    if target_duration_s is not None:
+        workout.target_duration_s = target_duration_s
+    if target_intensity is not None:
+        workout.target_intensity = target_intensity
+    if reason is not None:
+        workout.adjustment_note = reason
+
+    recompute_week_actuals(week, plan.goal.sport)
+    storage.save_plan(plan)
+    try:
+        write_plan_markdown(plan, lang=profile_language(storage))
+    except Exception as exc:
+        logger.warning("Failed to refresh markdown copy of plan: %s", exc)
+
+    return {
+        "status": "adjusted",
+        "date": workout_date,
+        "week": week.week_number,
+        "before": before,
+        "after": {"type": workout.workout_type, "description": workout.description},
+        "next_steps": plan_update_next_steps(watch_sync=True),
     }

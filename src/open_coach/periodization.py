@@ -94,7 +94,14 @@ def volume_for_week(
 
 
 def max_minutes_for_day(day_idx: int, constraints: TrainingConstraints) -> int | None:
-    """Session duration cap for a weekday index (Saturday/Sunday use the weekend cap)."""
+    """Session duration cap for a weekday index.
+
+    A per-day cap (``max_minutes_by_day``) wins; otherwise Saturday / Sunday use
+    the weekend cap and the other days the weekday cap.
+    """
+    name = next(n for n, i in DAY_INDEX.items() if i == day_idx)
+    if name in constraints.max_minutes_by_day:
+        return constraints.max_minutes_by_day[name]
     if day_idx >= 5:
         return constraints.max_weekend_minutes
     return constraints.max_weekday_minutes

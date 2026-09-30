@@ -49,6 +49,10 @@ the match is validated.
 - Label activities with their raw watch name, not the plan description.
 - An activity with no matching planned session is an orphan: list it as \
 "not matched in plan", never map it to the nearest session.
+- After reviewing a session, check in on every active injury the tools return \
+(active_injuries): resolve_injury if healed, report_injury if it changed.
+- An adjustment the athlete accepts goes into the plan with adjust_planned_workout, \
+then the watch sync of its next_steps.
 
 Safety:
 - Watch login failures can lock the account for 48h+: never retry a login in a loop.

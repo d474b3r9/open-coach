@@ -20,6 +20,6 @@ Load a sub-file only if the rule it covers is relevant to the question asked.
 
 ## Behaviours encoded in the running plugin (do not re-derive by hand)
 
-- The `max_weekday_minutes` / `max_weekend_minutes` constraints **cap the duration of generated sessions** (easy / long run: distance reduced; tempo: threshold block reduced, floor 2 km; intervals: reps reduced, floor 3).
+- The `max_minutes_by_day` (per day, wins) / `max_weekday_minutes` / `max_weekend_minutes` constraints **cap the duration of generated sessions**; a day capped under 60 min never gets the long run or the quality session when a longer day exists (easy / long run: distance reduced; tempo: threshold block reduced, floor 2 km; intervals: reps reduced, floor 3).
 - Half / marathon predictions apply an **endurance penalty if CTL < 50** (capped at +6 %) — a fresh VDOT on a thin aerobic base no longer promises an unrealistic marathon time.
 - `sync_upcoming_workouts` pushes only sessions that carry quality (tempo, intervals, race, long runs with an embedded pace block); easy runs are run on feel.

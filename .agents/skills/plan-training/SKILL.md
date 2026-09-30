@@ -37,6 +37,7 @@ Verify:
 
 Ask only if the data is missing from the profile:
 - "Which days do you train?" → `set_training_constraints(available_days=[...])`
+- "Any day with a short slot?" → `set_training_constraints(max_minutes_by_day={"monday": 45})` (a day under 60 min gets an easy session, never the long run or the quality session)
 - "Maximum time on weekdays? On weekends?"
 - "Any recent injuries I should account for?"
 
