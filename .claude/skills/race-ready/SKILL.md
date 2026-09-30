@@ -6,12 +6,12 @@ description: Race-day briefing — readiness assessment, time predictions, pacin
 
 # race-ready
 
-MCP workflow to produce a race briefing (readiness, prediction, pacing). For the interpretation rules (TSB, CTL, completion %, taper), see the `entraineur` skill → `references/methodology.md`.
+MCP workflow to produce a race briefing (readiness, prediction, pacing). For the interpretation rules (TSB, CTL, completion %, taper), see the `entraineur` methodology → `get_coaching_guide("methodology")`.
 
 ## Steps
 
 ### 1. Context
-Read `coach://context` for the full profile, goals, today's date.
+Call `get_coaching_context` (same data as the `coach://context` resource) for the full profile, goals, today's date.
 
 ### 2. Readiness
 `get_race_readiness(goal_index=0)`

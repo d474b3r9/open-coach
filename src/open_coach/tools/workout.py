@@ -20,6 +20,7 @@ from pydantic import ValidationError
 
 from open_coach.server import mcp
 from open_coach.tools._common import (
+    compact_payload,
     get_watch,
     invalid_date_error,
     parse_iso_date,
@@ -32,13 +33,15 @@ from open_coach.workout_dsl import DSLWorkout, parse_dsl
 logger = logging.getLogger(__name__)
 
 
-def _load_dsl(workout: str, name: str | None = None) -> DSLWorkout:
-    """Parse a workout given as DSLWorkout JSON or as the compact text DSL.
+def _load_dsl(workout: DSLWorkout | str, name: str | None = None) -> DSLWorkout:
+    """Parse a workout given as a DSLWorkout object, DSLWorkout JSON or compact text DSL.
 
     Text DSL input requires a separate ``name`` (JSON embeds its own).
     Raises ``ValueError`` / ``ValidationError`` on malformed input; tools wrap
     it through :func:`_load_dsl_or_error` so they never raise to the caller.
     """
+    if isinstance(workout, DSLWorkout):
+        return workout
     text = workout.strip()
     if text.startswith("{"):
         return DSLWorkout.model_validate_json(text)
@@ -47,7 +50,7 @@ def _load_dsl(workout: str, name: str | None = None) -> DSLWorkout:
     return parse_dsl(name, text)
 
 
-def _load_dsl_or_error(workout: str, name: str | None = None) -> DSLWorkout | dict:
+def _load_dsl_or_error(workout: DSLWorkout | str, name: str | None = None) -> DSLWorkout | dict:
     """Soft-failing variant of :func:`_load_dsl`: returns ``{"error": ...}`` instead of raising."""
     try:
         return _load_dsl(workout, name)
@@ -60,12 +63,12 @@ def _load_dsl_or_error(workout: str, name: str | None = None) -> DSLWorkout | di
 
 @mcp.tool()
 async def upload_workout(
-    workout_json: str, name: str | None = None, ctx: Context | None = None
+    workout_json: DSLWorkout | str, name: str | None = None, ctx: Context | None = None
 ) -> dict:
     """Build and upload a structured running workout to the watch platform.
 
     Args:
-        workout_json: Either a DSLWorkout JSON string:
+        workout_json: Either a DSLWorkout object (preferred) or its JSON string:
             {
               "name": "10x1min @ threshold",
               "steps": [
@@ -149,7 +152,7 @@ async def schedule_watch_workout(
 
 @mcp.tool()
 async def build_and_push_workout(
-    workout_json: str,
+    workout_json: DSLWorkout | str,
     target_date: str,
     name: str | None = None,
     ctx: Context | None = None,
@@ -157,8 +160,8 @@ async def build_and_push_workout(
     """Build, upload and schedule a workout in one call.
 
     Args:
-        workout_json: DSLWorkout JSON string or compact text DSL
-            (same formats as upload_workout — text DSL requires `name`).
+        workout_json: DSLWorkout object (preferred), its JSON string, or the
+            compact text DSL (same formats as upload_workout — text DSL requires `name`).
         target_date: Target date in YYYY-MM-DD format.
         name: Workout name — required only for text DSL input.
 
@@ -239,11 +242,15 @@ async def unschedule_watch_workout(schedule_id: int, ctx: Context | None = None)
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
-async def list_watch_workouts(limit: int = 100, ctx: Context | None = None) -> dict:
+async def list_watch_workouts(
+    limit: int = 100, compact: bool = True, ctx: Context | None = None
+) -> dict:
     """List all workout templates in the watch library.
 
     Args:
         limit: Maximum number of results (default 100).
+        compact: Drop empty fields and round floats (default True). Set False
+            only to see the untouched vendor payload.
 
     Returns:
         {"workouts": [...], "count": int}
@@ -253,6 +260,8 @@ async def list_watch_workouts(limit: int = 100, ctx: Context | None = None) -> d
     if watch is None:
         return watch_error()
     workouts = [w.raw for w in await watch.list_workouts(limit)]
+    if compact:
+        workouts = [compact_payload(w) for w in workouts]
     return {"workouts": workouts, "count": len(workouts)}
 
 

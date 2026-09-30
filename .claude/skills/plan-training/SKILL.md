@@ -6,13 +6,13 @@ description: Generate or update a periodized training plan for a target race (ca
 
 # plan-training
 
-MCP workflow to generate / update a training plan and sync it with Garmin. For the coaching rules (Daniels, 80/20, phase structure, test placement), see the `entraineur` skill (`references/methodology.md`). For the DSL conventions of pushed workouts, see `entraineur` (`references/dsl-conventions.md`).
+MCP workflow to generate / update a training plan and sync it with Garmin. For the coaching rules (Daniels, 80/20, phase structure, test placement), see the `entraineur` methodology (`get_coaching_guide("methodology")`). For the DSL conventions of pushed workouts, see `get_coaching_guide("dsl-conventions")`.
 
 ## Steps
 
 ### 1. Read context (mandatory)
 
-Read `coach://context` → profile (VDOT, CTL, weekly pattern) + goals + constraints + today's date.
+Call `get_coaching_context` (same data as the `coach://context` resource) → profile (VDOT, CTL, weekly pattern) + goals + constraints + today's date.
 
 Verify:
 - `profile.onboarding_complete: true` → otherwise suggest the `onboard` skill first

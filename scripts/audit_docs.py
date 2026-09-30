@@ -330,7 +330,7 @@ _LEAK_RE = re.compile("|".join(_LEAK_PATTERNS), re.IGNORECASE)
 # Top-level paths to scan (relative to REPO) when git is unavailable. plans/ is
 # gitignored and contains private data on purpose. The audit script scans
 # itself too: its default patterns are structural, so they must not self-match.
-_LEAK_SCAN_DIRS = [".claude", ".github", "docs", "scripts", "skills", "src", "tests"]
+_LEAK_SCAN_DIRS = [".claude", ".cursor", ".gemini", ".github", "docs", "scripts", "src", "tests"]
 _LEAK_SCAN_GLOBS_ROOT = ["*.md", "*.toml", "*.json", "*.cfg", "*.ini", "*.yaml", "*.yml"]
 # The pattern unit test holds deliberate fake leaks as fixtures.
 _LEAK_EXCLUDE_FILES = {"test_audit_leak_patterns.py"}

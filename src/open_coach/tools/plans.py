@@ -24,6 +24,7 @@ from open_coach.tools._common import (
     invalid_date_error,
     load_profile_live,
     parse_iso_date,
+    plan_update_next_steps,
     profile_language,
     save_active_plan,
     schedule_and_record,
@@ -146,6 +147,7 @@ async def generate_training_plan(
     }
     if archived_name:
         result["auto_archived"] = archived_name
+    result["next_steps"] = plan_update_next_steps(watch_sync=True, confirm_first=True)
 
     # Surface constraints the generator does not encode algorithmically:
     # the LLM coach adapts the plan (injuries, free-text notes).
@@ -359,4 +361,5 @@ async def update_workout_completion(
         "date": workout_date,
         "completed": completed,
         "week_completion_rate": week.completion_rate,
+        "next_steps": plan_update_next_steps(watch_sync=False),
     }

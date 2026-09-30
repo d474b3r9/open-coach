@@ -26,7 +26,7 @@ and ensure sessions are consistent with the Daniels-Gilbert method.
 | R (Repetition) | Speed | 105-120% | Short repeats ≤2min |
 
 Exact paces are computed by `calculate_vdot_from_race` and `get_training_zones`.
-**Always** use zones from the profile (`coach://profile`) rather than hardcoded values.
+**Always** use zones from the profile (`get_training_zones` / `get_coaching_context`) rather than hardcoded values.
 
 ## Recovery intervals
 

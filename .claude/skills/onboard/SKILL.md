@@ -6,11 +6,11 @@ description: Initialize the athlete profile by scanning Garmin history (VDOT, PR
 
 # Onboard
 
-MCP workflow to bootstrap the athlete profile. For the coaching rules to apply afterwards, see the `entraineur` skill.
+MCP workflow to bootstrap the athlete profile. For the coaching rules to apply afterwards, see the `entraineur` methodology (`get_coaching_guide("rules")`).
 
 ## Steps
 
-1. Read `coach://profile` → check if profile already exists
+1. Call `get_coaching_context` (`profile` block) → check if profile already exists
 2. If absent → `bootstrap_athlete_profile` (scans 6 months of Garmin data)
 3. Set the output language from the language the user writes in → `update_athlete_profile(language="en" | "fr")`. It drives the text the coach generates itself (plan markdown, session descriptions); the conversation always follows the user's language.
 4. Present results: VDOT, personal records, training patterns, current CTL/ATL/TSB
@@ -21,7 +21,7 @@ MCP workflow to bootstrap the athlete profile. For the coaching rules to apply a
 ## Edge cases
 
 - **Rate limit** on `bootstrap_athlete_profile` → suggest retry in 15 min, the scan is resumable.
-- **Garmin SSO locked** → see `entraineur` § "Garmin SSO" before retrying anything.
+- **Garmin SSO locked** → see `get_coaching_guide("rules")` § "Garmin SSO" before retrying anything.
 
 ## Output
 

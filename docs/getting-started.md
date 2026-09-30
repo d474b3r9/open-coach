@@ -59,7 +59,7 @@ The skill is **read by Claude on the way in** (every coaching turn pre-loads the
 
 ### Workflow skills layer (above `entraineur`)
 
-Workflow skills sit in `skills/`. Each one wraps a procedural use case:
+Workflow skills sit in `.claude/skills/` next to `entraineur`. Claude Code loads them as skills; every other MCP client gets them as MCP prompts of the same name or through the `get_coaching_guide` tool. Each one wraps a procedural use case:
 
 | Skill | What it does | When it triggers |
 |---|---|---|
@@ -138,15 +138,17 @@ Open `athlete-profile.md` and fill the placeholder sections. The template is ann
 - 1-3 physical constraints (e.g. "sensitive knee → no downhill repeats")
 - Weekly schedule constraint (e.g. "Wednesday capped at 40 min")
 
-### Step 2 — Open Claude Code in this repo
+### Step 2 — Open your MCP client in this repo
 
-The `.mcp.json` file at the repo root makes Claude Code start the MCP server (approve the project server when prompted). Skills under `skills/` and `.claude/skills/` load because the repo is your open workspace.
+The walkthrough below uses Claude Code, the reference client. The `.mcp.json` file at the repo root makes Claude Code start the MCP server (approve the project server when prompted). Skills under `.claude/skills/` load because the repo is your open workspace.
+
+Cursor (`.cursor/mcp.json`) and Gemini CLI (`.gemini/settings.json`) pick up the project configs shipped in the repo; Codex, VS Code, Claude Desktop and others need one snippet each — see [`mcp-clients.md`](mcp-clients.md). Those clients receive the same coaching rules through the server instructions, the workflows as MCP prompts, and the methodology through `get_coaching_guide`.
 
 Open the project. Verify with a smoke ask:
 
 > *"What's the current date?"*
 
-Claude should respond with today's date from `coach://context`. If it does not, the MCP server didn't load — check the logs (`uv run python -m open_coach.server` directly to see startup errors).
+The model should respond with today's date from `get_coaching_context` (or the `coach://context` resource). If it does not, the MCP server didn't load — check the logs (`uv run open-coach` directly to see startup errors).
 
 ### Step 3 — First real coaching turn
 
@@ -214,7 +216,7 @@ After each coaching turn, Claude appends to `plans/training-journal.md`. Periodi
 
 ### Adding a new MCP tool
 
-Follow `CLAUDE.md` § "Adding a new MCP tool or resource". TL;DR:
+Follow `AGENTS.md` § "Adding a new MCP tool or resource". TL;DR:
 
 ```python
 # src/open_coach/tools/your_module.py
@@ -247,10 +249,12 @@ If your rule depends on athlete-specific data (e.g. "if HR cap is < 140 …"), m
 ### Adding a new workflow skill
 
 ```
-skills/
+.claude/skills/
 └── your-workflow/
-    └── SKILL.md      with YAML frontmatter (name, description, allowed-tools)
+    └── SKILL.md      with YAML frontmatter (name, description)
 ```
+
+Then add the name to `WORKFLOWS` and `GuideName` in `src/open_coach/guides.py` so the workflow is also served as an MCP prompt and through `get_coaching_guide` (`tests/test_llm_portability.py` checks it).
 
 The `description:` field is what Claude uses to decide whether to trigger this skill. Make it specific so it doesn't collide with `entraineur` (which triggers on rule/methodology terms) or other workflows.
 
@@ -273,7 +277,7 @@ A: Those platforms have great UIs but the methodology is opaque (you can't read 
 
 **Q: Why Claude specifically?**
 
-A: The skill system + MCP tooling makes it natural to express coaching rules explicitly *and* have a competent agent orchestrate them. Other agents (Cursor, Aider, …) have less mature equivalents. The architecture would port — it's just a matter of who hosts the methodology layer.
+A: It is not tied to Claude. Claude Code is the reference client (native skills + hooks), but the MCP server carries the methodology layer itself: operating rules in the server instructions, workflows as MCP prompts, methodology through `get_coaching_guide`, and tool mirrors for every resource. Cursor, Codex, Gemini CLI, VS Code, Claude Desktop or a local model behind an MCP front end all work — see [`mcp-clients.md`](mcp-clients.md). Pick a model with reliable tool calling.
 
 **Q: Why not a web UI?**
 
@@ -348,7 +352,7 @@ After this, `providers/garmin_auth.py` resumes from the token cache on every sta
 
 ### Other common issues
 
-- **`ValueError: URI template must contain at least one parameter`** at server startup → an `@mcp.resource()` function has an untyped `ctx=None` parameter. Annotate it as `ctx: Context` (see `CLAUDE.md` § FastMCP gotcha).
+- **`ValueError: URI template must contain at least one parameter`** at server startup → an `@mcp.resource()` function has an untyped `ctx=None` parameter. Annotate it as `ctx: Context` (see `AGENTS.md` § FastMCP gotcha).
 - **Strava tool returns `{"error": ...}`** → `~/.open-coach/strava_tokens.json` is missing. Run `scripts/strava_setup.py` once.
 - **`UnicodeEncodeError` in a setup script on Windows** → cp1252 console. Set `PYTHONIOENCODING=utf-8` before running, or keep the script ASCII-only.
 
@@ -356,10 +360,10 @@ After this, `providers/garmin_auth.py` resumes from the token cache on every sta
 
 ## 7. Next steps
 
-- Read [`CLAUDE.md`](../CLAUDE.md) for contributor-level architecture details.
+- Read [`AGENTS.md`](../AGENTS.md) for contributor-level architecture details, and [`mcp-clients.md`](mcp-clients.md) to use another MCP client.
 - Read [`CONTRIBUTING.md`](../CONTRIBUTING.md) for the data separation policy.
 - Browse [`.claude/skills/entraineur/SKILL.md`](../.claude/skills/entraineur/SKILL.md) to see the methodology rules.
-- Browse [`skills/`](../skills/) to see each workflow's instructions.
+- Browse [`.claude/skills/`](../.claude/skills/) to see each workflow's instructions.
 - Run `uv run pytest --co -q` to enumerate tests and spot-check coverage.
 
 Bonne course.

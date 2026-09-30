@@ -6,16 +6,14 @@ description: Build a structured workout (DSLWorkout JSON) and push it to the Gar
 
 # push-workout
 
-MCP workflow to build a `DSLWorkout` and push it to the watch. **The strict rules for building the DSL** (lap_button warmup, easy run = 1 block, ±5 s pace target, warmup ≥ 15 min) live in the `entraineur` skill → `references/dsl-conventions.md` — load them before generating a workout.
+MCP workflow to build a `DSLWorkout` and push it to the watch. **The strict rules for building the DSL** (lap_button warmup, easy run = 1 block, ±5 s pace target, warmup ≥ 15 min) live in the `entraineur` methodology → `get_coaching_guide("dsl-conventions")` — load them before generating a workout.
 
 ## Steps
 
 ### 1. Read context
 
-```
-coach://context → VDOT + pace zones (coach://profile),
-                  goals (coach://goals), constraints (coach://constraints)
-```
+Call `get_coaching_context` (same data as the `coach://context` resource) → VDOT, goals,
+constraints, active plan. Pace zones: `get_training_zones`.
 
 ### 2. Identify the session
 
@@ -26,7 +24,7 @@ From the athlete's request, infer:
 
 ### 3. Build the DSLWorkout
 
-Apply the conventions from `entraineur/references/dsl-conventions.md`:
+Apply the conventions from `get_coaching_guide("dsl-conventions")`:
 - Plain easy run → 1 step `repeat count=1` + `interval` distance-based + pace target. **No warmup/cooldown.**
 - Quality session → `warmup` lap_button + body + `cooldown` lap_button, name carries volume + time targets.
 - Pace target window = coaching target ± 5 sec/km (alert tolerance).

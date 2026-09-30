@@ -1,0 +1,24 @@
+{
+  "context": {
+    "fileName": [
+      "AGENTS.md"
+    ]
+  },
+  "mcpServers": {
+    "open-coach": {
+      "command": "uv",
+      "args": [
+        "run",
+        "--directory",
+        ".",
+        "open-coach"
+      ],
+      "env": {
+        "GARMIN_EMAIL": "$GARMIN_EMAIL",
+        "GARMIN_PASSWORD": "$GARMIN_PASSWORD",
+        "STRAVA_CLIENT_ID": "$STRAVA_CLIENT_ID",
+        "STRAVA_CLIENT_SECRET": "$STRAVA_CLIENT_SECRET"
+      }
+    }
+  }
+}

@@ -2,7 +2,12 @@
   "mcpServers": {
     "open-coach": {
       "command": "uv",
-      "args": ["run", "--directory", ".", "python", "-c", "from open_coach.server import main; main()"],
+      "args": [
+        "run",
+        "--directory",
+        ".",
+        "open-coach"
+      ],
       "env": {
         "GARMIN_EMAIL": "${GARMIN_EMAIL:-}",
         "GARMIN_PASSWORD": "${GARMIN_PASSWORD:-}",

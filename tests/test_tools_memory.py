@@ -400,10 +400,20 @@ class TestSaveTrainingPlan:
         ctx = mock_ctx(storage=storage)
         result = await save_training_plan(plan.model_dump_json(), ctx=ctx)
         md_path = result.pop("markdown_path")
+        next_steps = result.pop("next_steps")
         assert result == {"status": "plan_saved", "name": "Half Prep", "weeks": 8}
         assert storage.load_active_plan().name == "Half Prep"
         assert Path(md_path).is_file()
         assert "Half Prep" in Path(md_path).read_text(encoding="utf-8")
+        assert any("list_watch_workouts" in step for step in next_steps)
+
+    async def test_accepts_plan_object(self, storage):
+        """Typed input: clients that follow the JSON schema send an object, not a string."""
+        plan = make_plan(name="Object Plan")
+        ctx = mock_ctx(storage=storage)
+        result = await save_training_plan(plan, ctx=ctx)
+        assert result["status"] == "plan_saved"
+        assert storage.load_active_plan().name == "Object Plan"
 
     async def test_invalid_plan_json_returns_error(self, storage):
         ctx = mock_ctx(storage=storage)

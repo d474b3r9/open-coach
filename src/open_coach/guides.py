@@ -1,0 +1,115 @@
+"""Coaching guides: the methodology and workflow skills, readable by any MCP client.
+
+The guides are written as Claude Code skills (``.claude/skills/<name>/SKILL.md``
+plus ``references/*.md``). Claude Code loads them natively; every other client
+reaches the same text through the MCP server (prompts, ``coach://guide/{name}``
+resources and the ``get_coaching_guide`` tool). The markdown files stay the
+single source of truth — nothing is copied into Python.
+
+Lookup order: ``open_coach/_guides`` (bundled into the wheel by hatch), then
+the repository's ``.claude/skills`` (editable / ``uv run`` installs).
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from pathlib import Path
+from typing import Literal, get_args
+
+# Methodology topics → file path relative to the skills directory.
+METHODOLOGY_TOPICS: dict[str, str] = {
+    "rules": "entraineur/SKILL.md",
+    "methodology": "entraineur/references/methodology.md",
+    "dsl-conventions": "entraineur/references/dsl-conventions.md",
+    "anti-patterns": "entraineur/references/anti-patterns.md",
+}
+
+# Workflow skills, exposed as MCP prompts of the same name.
+WORKFLOWS: tuple[str, ...] = (
+    "onboard",
+    "plan-training",
+    "push-workout",
+    "analyze-run",
+    "daily-check",
+    "race-ready",
+)
+
+GuideName = Literal[
+    "rules",
+    "methodology",
+    "dsl-conventions",
+    "anti-patterns",
+    "onboard",
+    "plan-training",
+    "push-workout",
+    "analyze-run",
+    "daily-check",
+    "race-ready",
+]
+
+GUIDE_NAMES: tuple[str, ...] = get_args(GuideName)
+
+_PACKAGE_DIR = Path(__file__).resolve().parent
+_CANDIDATE_DIRS = (
+    _PACKAGE_DIR / "_guides",
+    _PACKAGE_DIR.parents[1] / ".claude" / "skills",
+)
+
+
+@dataclass(frozen=True)
+class Guide:
+    name: str
+    description: str
+    content: str
+
+
+def skills_dir() -> Path | None:
+    """First existing guides directory, or None when the guides are not shipped."""
+    for candidate in _CANDIDATE_DIRS:
+        if (candidate / "entraineur" / "SKILL.md").is_file():
+            return candidate
+    return None
+
+
+def split_frontmatter(text: str) -> tuple[dict[str, str], str]:
+    """Split a SKILL.md into its flat ``key: value`` frontmatter and its body."""
+    if not text.startswith("---\n"):
+        return {}, text
+    end = text.find("\n---", 4)
+    if end == -1:
+        return {}, text
+    meta: dict[str, str] = {}
+    for line in text[4:end].splitlines():
+        key, sep, value = line.partition(":")
+        if sep:
+            meta[key.strip()] = value.strip()
+    return meta, text[end + 4 :].lstrip("\n")
+
+
+def load_guide(name: str) -> Guide | None:
+    """Load one guide by name (methodology topic or workflow), or None if unavailable.
+
+    A workflow guide carries its own ``references/*.md`` appended, so a client
+    without file access still gets everything the skill points to.
+    """
+    root = skills_dir()
+    if root is None:
+        return None
+    if name in METHODOLOGY_TOPICS:
+        path = root / METHODOLOGY_TOPICS[name]
+        if not path.is_file():
+            return None
+        meta, body = split_frontmatter(path.read_text(encoding="utf-8"))
+        return Guide(name, meta.get("description", f"Coaching methodology: {name}"), body)
+    if name in WORKFLOWS:
+        path = root / name / "SKILL.md"
+        if not path.is_file():
+            return None
+        meta, body = split_frontmatter(path.read_text(encoding="utf-8"))
+        parts = [body.rstrip()]
+        refs = root / name / "references"
+        if refs.is_dir():
+            for ref in sorted(refs.glob("*.md")):
+                parts.append(f"## Reference: {ref.stem}\n\n{ref.read_text(encoding='utf-8')}")
+        return Guide(name, meta.get("description", f"Workflow: {name}"), "\n\n".join(parts))
+    return None
