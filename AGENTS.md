@@ -79,6 +79,31 @@ Tools never call a vendor SDK: they go through a `WatchProvider` (`providers/bas
 3. Add mapping tests with realistic payloads (like `tests/test_provider_garmin.py`) and make sure the scenarios of `tests/test_provider_contract.py` pass against it.
 4. Tools are vendor-neutral (`list_watch_workouts`, `clean_watch_calendar`, `archive_active_plan(cleanup_watch=…)`…): a new provider needs no tool change. Tool outputs that carry raw vendor payloads (`get_activity_details`, `get_training_status`, `list_watch_workouts`) pass the provider's own shape through to the LLM.
 
+### Sport plugins
+
+The core is sport-agnostic: models, storage, training load, recovery scoring, periodization, plan lifecycle, rendering, the watch calendar and every tool only know the neutral types of `sports/base.py` (`SportKey`, `Intensity`, `Volume`, `FitnessMarker`, `Conversion`) and the `Sport` protocol. Everything specific to a sport lives in `sports/<key>/` and is reached through `sports/registry.get_sport(key)`. Running (`sports/running/`) is the only plugin today:
+
+| Module | Responsibility |
+|--------|---------------|
+| `sports/running/__init__.py` | `RunningSport` (the `Sport` implementation, delegating to the modules below) + helpers `vdot_of`, `set_vdot`, `pace`, `pace_of`, `avg_pace_sec_per_km` |
+| `sports/running/vdot.py` | Daniels-Gilbert: `calculate_vdot`, `predict_time`, `training_paces` |
+| `sports/running/zones.py` | Daniels pace zones, Karvonen HR per Daniels zone, `zones_payload` |
+| `sports/running/profile.py` | PR detection, VDOT from PRs, training pattern → `build_running_profile` |
+| `sports/running/plan.py` | `generate_plan` → `TrainingPlan` (running sessions on the `periodization` skeleton) |
+| `sports/running/plan_to_dsl.py` | `convert_planned_workout(workout, paces)` — parses a plan session description (`3×1 km @ T 4:16-4:20 r 2'`, `10 km dont 15 min @ M`, `10 km incl. 15 min @ M`) into a `DSLWorkout`; **refuses** (returns a reason) rather than guessing a structure |
+| `sports/running/race.py` | Race predictions, pacing splits, readiness; `RunningRace` is the `Sport.race` capability |
+| `sports/running/adapt.py` | Session adjustments from the recovery status |
+| `sports/running/i18n.py` | Running session strings (EN/FR), registered into `i18n` |
+
+`tests/test_sport_isolation.py` fails if running code (VDOT, pace fields, running session names, `sports.running` imports) shows up in the core, apart from a short, justified allowlist.
+
+**Adding a sport (e.g. cycling)**:
+1. Implement `Sport` (`sports/base.py`) in `sports/<key>/`: fitness marker (cycling: FTP), zones, profile builder, plan builder (reuse `periodization.py`), plan session → DSL, recovery adaptation, optional `race` capability, `activity_intensity`, i18n strings via `i18n.register`.
+2. Widen `SportKey` (and `IntensityKind` / `TargetKind` if the sport needs new targets, e.g. power), register the plugin in `registry._SPORTS`.
+3. Map the vendor's activity types and workout class: `providers/garmin._SPORT_BY_TYPE`, `providers/garmin_workout._SPORTS` (`CyclingWorkout`, `SwimmingWorkout`…), and new target types in `garmin_workout._target_fields`.
+4. Write the rules guide `.agents/skills/coaching-rules-<key>/` (SKILL.md + `references/`), add its topics to `guides.METHODOLOGY_TOPICS`, `GuideName` and `SERVED_SKILLS`, and a row to the sport table of `coaching-rules/SKILL.md`.
+5. `tests/test_sport_contract.py` runs the shared scenarios against every registered sport; add the sport's own unit tests next to them.
+
 ### Client portability
 
 Clients differ: some never read `AGENTS.md`/`CLAUDE.md`, many ignore MCP resources, several have no prompts, weaker models struggle with string-encoded JSON. The server therefore carries everything itself:
@@ -94,7 +119,7 @@ Clients differ: some never read `AGENTS.md`/`CLAUDE.md`, many ignore MCP resourc
 
 `tests/test_llm_portability.py` guards all of this (every workflow skill has a prompt, instructions carry the key rules, typed params publish their schema…). Per-client setup: `docs/mcp-clients.md`.
 
-When adding a workflow skill: create `.agents/skills/<name>/SKILL.md`, then add the name to `WORKFLOWS` and `GuideName` in `guides.py`. In a skill, name the tool (`get_coaching_context`, `get_coaching_guide("…")`) rather than a bare `coach://` read.
+When adding a sport rules guide: see "Adding a sport". When adding a workflow skill: create `.agents/skills/<name>/SKILL.md`, then add the name to `WORKFLOWS` and `GuideName` in `guides.py`. In a skill, name the tool (`get_coaching_context`, `get_coaching_guide("…")`) rather than a bare `coach://` read.
 
 ### Tool/resource registration
 
@@ -122,17 +147,16 @@ async def my_tool(arg: int, ctx: Context | None = None) -> dict:
 
 | Module | Responsibility |
 |--------|---------------|
-| `vdot.py` | Daniels-Gilbert: `calculate_vdot`, `predict_time`, `training_paces` |
+| `periodization.py` | Week types (base/build/peak/taper/recovery), volume progression, day placement — shared by every sport's plan builder |
 | `training_load.py` | hrTSS → `calculate_load_series(…, end_date=)` → CTL/ATL/TSB (EWMA 42d/7d). Always pass the assessed day as `end_date` (the tools use `tools/_common.training_load_as_of`): rest days since the last run must decay the fatigue |
-| `zones.py` | `pace_zones_from_vdot`, `hr_zones_karvonen`, resting/max HR estimation |
-| `workout_dsl.py` | Pydantic DSL models + `parse_dsl(name, text)` (vendor-neutral) |
-| `plan_generator.py` | `generate_plan` → `TrainingPlan` (phases base/build/peak/taper, recovery weeks) |
-| `plan_to_dsl.py` | `convert_planned_workout(workout, paces)` — parses a plan session description (`3×1 km @ T 4:16-4:20 r 2'`, `10 km dont 15 min @ M`, `10 km incl. 15 min @ M`) into a `DSLWorkout`; **refuses** (returns a reason) rather than guessing a structure. Used by `sync_upcoming_workouts` |
-| `race_predictor.py` | Race predictions, pacing splits, multi-component readiness |
-| `recovery_monitor.py` | Multi-signal recovery scoring + adaptive recommendations |
+| `zones.py` | `karvonen_range`, resting/max HR estimation |
+| `workout_dsl.py` | Pydantic DSL models (sport + pace / heart-rate targets) + `parse_dsl(name, text, sport)` (vendor-neutral) |
+| `recovery_monitor.py` | Multi-signal recovery scoring; `recommend_adaptation` hands a planned session to its sport (`Sport.adapt_workout`) |
+| `onboarding.py` | Profile from history: one block per sport (`Sport.build_profile`), load from every activity |
+| `units.py` | `format_time` |
 | `plan_renderer.py` | `render_plan_to_markdown(plan)` — pure formatter; `write_plan_markdown` is the I/O wrapper |
 | `plan_metrics.py` | `recompute_week_actuals(week, default_sport)` — refreshes `actual_volume` per sport (completed sessions + `extra_activities`) and `completion_rate` (rest / strength excluded). Used by `update_workout_completion` |
-| `i18n.py` | `t(key, lang)` / `day_abbreviation` — EN/FR table for text the code generates (plan markdown, session descriptions, plan name). Language comes from `AthleteProfile.language` via `tools/_common.profile_language`; the conversation language is left to the LLM |
+| `i18n.py` | `t(key, lang)` / `day_abbreviation` — EN/FR table for text the code generates (plan markdown, session descriptions, plan name); sport plugins add their strings with `register`. Language comes from `AthleteProfile.language` via `tools/_common.profile_language`; the conversation language is left to the LLM |
 
 ### Persistence
 
@@ -216,7 +240,8 @@ Setup scripts and one-shot CLI helpers (`scripts/*.py`) run in cp1252 by default
 
 Guides are **Agent Skills** ([open standard](https://agentskills.io/specification)) in `.agents/skills/` — the cross-client location read natively by Codex, Gemini CLI, Cursor, Copilot; Claude Code reads them through the `.claude/skills` symlink. Every other client gets them over MCP (see "Client portability"). Two layers:
 
-- **`.agents/skills/coaching-rules/`** — coaching **methodology rules** (Daniels, 80/20, periodization, recovery, anti-patterns, DSL workout conventions). Sub-files in `references/` are loaded on demand (`get_coaching_guide("methodology" | "dsl-conventions" | "anti-patterns")`). **Does not pilot any MCP workflow.**
+- **`.agents/skills/coaching-rules/`** — **universal** coaching rules (80/20, load progression, recovery weeks, profile + journal, longitudinal adaptation) and the table of sport rules guides; `references/principles.md` via `get_coaching_guide("principles")`. **Does not pilot any MCP workflow.**
+- **`.agents/skills/coaching-rules-<sport>/`** — one rules guide per sport. Running: `coaching-rules-running` (Daniels, running plan structure, DSL workout conventions, anti-patterns) — `get_coaching_guide("rules-running" | "running-methodology" | "running-dsl-conventions" | "running-anti-patterns")`.
 - **`.agents/skills/{onboard, plan-training, push-workout, analyze-run, daily-check, race-ready}/`** — **MCP workflows** (procedural guides that call MCP tools), also exposed as MCP prompts of the same name. Each references `coaching-rules` for the rules to apply.
 - **`.agents/skills/extract-transcript/`** — repo maintenance skill (needs a shell), not served over MCP.
 

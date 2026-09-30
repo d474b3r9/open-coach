@@ -20,7 +20,7 @@ from open_coach.models import Language, PlannedWorkout, TrainingPlan, TrainingWe
 from open_coach.paths import env
 from open_coach.sports.base import SportKey, Volume
 from open_coach.sports.registry import get_sport
-from open_coach.vdot import format_time
+from open_coach.units import format_time
 
 logger = logging.getLogger(__name__)
 

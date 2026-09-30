@@ -417,6 +417,7 @@ _FRENCH_RE = re.compile(
 _FRENCH_EXCLUDE_PREFIXES = ("tests/",)
 _FRENCH_EXCLUDE_FILES = {
     "src/open_coach/i18n.py",
+    "src/open_coach/sports/running/i18n.py",
     "scripts/audit_docs.py",
     "CHANGELOG.md",
 }

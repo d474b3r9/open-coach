@@ -113,9 +113,10 @@ WATCH_SYNC_STEP = (
     "Sync the watch: call list_watch_workouts for every affected date (old and new), "
     "unschedule_watch_workout (and delete_watch_workout if the coach created it) for any "
     "moved or conflicting session, then push with sync_upcoming_workouts or "
-    "build_and_push_workout. Push only sessions carrying quality or a pace block "
-    "(interval, tempo, race, long run with an embedded @ M block) — never a plain easy run, "
-    "rest or strength session. Report what was unscheduled, pushed and left unpushed."
+    "build_and_push_workout. Push only sessions carrying quality (see the sport's rules; "
+    "running: interval, tempo, race, long run with an embedded @ M block) — never a plain "
+    "easy run, rest or strength session. Report what was unscheduled, pushed and left "
+    "unpushed."
 )
 
 

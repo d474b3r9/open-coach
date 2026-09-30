@@ -13,8 +13,7 @@ from datetime import date, timedelta
 
 from fastmcp import Context
 
-from open_coach.models import PlannedWorkout, TrainingConstraints
-from open_coach.plan_generator import generate_plan
+from open_coach.models import TrainingConstraints
 from open_coach.plan_metrics import recompute_week_actuals
 from open_coach.plan_renderer import (
     count_phases,
@@ -22,10 +21,9 @@ from open_coach.plan_renderer import (
     volume_headline,
     write_plan_markdown,
 )
-from open_coach.plan_to_dsl import carries_quality, convert_planned_workout
 from open_coach.server import mcp
 from open_coach.sports.base import Volume
-from open_coach.sports.running import RUNNING, vdot_of
+from open_coach.sports.registry import get_sport
 from open_coach.tools._common import (
     get_watch,
     invalid_date_error,
@@ -38,10 +36,6 @@ from open_coach.tools._common import (
     upload_and_register,
     watch_error,
 )
-from open_coach.vdot import training_paces
-from open_coach.workout_dsl import (
-    DSLWorkout,
-)
 
 logger = logging.getLogger(__name__)
 
@@ -53,14 +47,6 @@ def _next_monday(from_date: date) -> date:
     """Return the next Monday on or after from_date."""
     days_until_monday = (7 - from_date.weekday()) % 7
     return from_date + timedelta(days=days_until_monday)
-
-
-def _planned_workout_to_dsl(
-    workout: PlannedWorkout,
-    paces: dict[str, tuple[float, float]] | None = None,
-) -> DSLWorkout | None:
-    """Thin wrapper kept for callers/tests — see ``plan_to_dsl.convert_planned_workout``."""
-    return convert_planned_workout(workout, paces).dsl
 
 
 # ── Tools ──────────────────────────────────────────────────────────────────────
@@ -88,8 +74,7 @@ async def generate_training_plan(
     storage = ctx.lifespan_context["storage"]
 
     profile = await load_profile_live(ctx)
-    vdot = vdot_of(profile)
-    if profile is None or vdot is None:
+    if profile is None:
         return {"error": "No athlete profile. Run bootstrap_athlete_profile first."}
 
     goals = storage.load_goals()
@@ -117,19 +102,12 @@ async def generate_training_plan(
     if goal.race_date <= start:
         return {"error": f"Race date {goal.race_date} must be after start date {start}."}
 
-    pattern = profile.sport_profile(RUNNING).training_pattern
-    current_km = (
-        pattern.weekly_distance_m / 1000 if pattern else max(20.0, (profile.ctl or 30.0) * 0.9)
-    )
-
-    plan = generate_plan(
-        goal=goal,
-        vdot=vdot,
-        current_weekly_km=current_km,
-        constraints=constraints,
-        start_date=start,
-        lang=profile_language(storage),
-    )
+    try:
+        plan = get_sport(goal.sport).generate_plan(
+            goal, profile, constraints, start, profile_language(storage)
+        )
+    except ValueError as exc:
+        return {"error": str(exc)}
     archived_name = save_active_plan(storage, plan)
     logger.info("Generated plan %r (%d weeks)", plan.name, len(plan.weeks))
 
@@ -225,8 +203,7 @@ async def sync_upcoming_workouts(
     registry = storage.load_workout_registry()
     scheduled_dates = {d for upload in registry.active_workouts() for d in upload.schedule_dates}
 
-    vdot = vdot_of(storage.load_profile())
-    paces = training_paces(vdot) if vdot else None
+    profile = storage.load_profile()
 
     uploaded = 0
     skipped = 0
@@ -238,11 +215,12 @@ async def sync_upcoming_workouts(
         if workout.date in scheduled_dates:
             skipped += 1
             continue
-        if not include_easy and not carries_quality(workout):
+        sport = get_sport(plan.sport_of(workout))
+        if not include_easy and not sport.carries_quality(workout):
             left_unpushed.append({"date": str(workout.date), "type": workout.workout_type})
             continue
 
-        conversion = convert_planned_workout(workout, paces)
+        conversion = sport.workout_to_dsl(workout, profile)
         dsl = conversion.dsl
         if dsl is None:
             skipped += 1

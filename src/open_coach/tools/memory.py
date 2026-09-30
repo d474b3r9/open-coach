@@ -45,8 +45,7 @@ from open_coach.onboarding import build_profile_from_activities
 from open_coach.plan_renderer import delete_plan_markdown, write_plan_markdown
 from open_coach.server import mcp
 from open_coach.sports.base import FitnessMarker, SportKey
-from open_coach.sports.registry import get_sport
-from open_coach.sports.running import RUNNING, avg_pace_sec_per_km, pace, vdot_of
+from open_coach.sports.registry import get_sport, is_registered
 
 logger = logging.getLogger(__name__)
 
@@ -291,6 +290,17 @@ async def archived_plan_tool(name: str | None = None, ctx: Context | None = None
 # ── MCP Tools (write operations) ──
 
 
+def _sports_summary(profile: AthleteProfile) -> dict:
+    """Per-sport onboarding result: fitness marker and record count."""
+    return {
+        key: {
+            "fitness": sp.fitness.model_dump() if sp.fitness else None,
+            "records": len(sp.personal_records),
+        }
+        for key, sp in profile.sports.items()
+    }
+
+
 @mcp.tool()
 async def bootstrap_athlete_profile(ctx: Context | None = None) -> dict:
     """Scan 6 months of watch history to build initial athlete profile.
@@ -308,11 +318,7 @@ async def bootstrap_athlete_profile(ctx: Context | None = None) -> dict:
     # Check if already complete
     existing = storage.load_profile()
     if existing and existing.onboarding_complete:
-        return {
-            "status": "already_complete",
-            "vdot": vdot_of(existing),
-            "prs": len(existing.sport_profile(RUNNING).personal_records),
-        }
+        return {"status": "already_complete", "sports": _sports_summary(existing)}
 
     # Fetch 6 months of activities
     from open_coach.models import ActivitySummary
@@ -322,8 +328,9 @@ async def bootstrap_athlete_profile(ctx: Context | None = None) -> dict:
     for a in recorded:
         dist = a.distance_m
         dur = a.duration_s
-        # A run needs a distance (records, pattern); any sport with a duration loads.
-        if dur > 0 and (dist > 0 or a.sport != RUNNING):
+        # A coached sport needs a distance (records, pattern); any other session with a
+        # duration still loads the athlete.
+        if dur > 0 and (dist > 0 or not is_registered(a.sport)):
             activities.append(
                 ActivitySummary(
                     activity_id=a.activity_id or 0,
@@ -364,13 +371,10 @@ async def bootstrap_athlete_profile(ctx: Context | None = None) -> dict:
     storage.save_profile(profile)
     storage.save_activity_cache(activities)
 
-    running = profile.sport_profile(RUNNING)
     return {
         "status": "complete",
         "activities_scanned": len(activities),
-        "prs_detected": len(running.personal_records),
-        "vdot": vdot_of(profile),
-        "vdot_source": running.fitness.source if running.fitness else None,
+        "sports": _sports_summary(profile),
         "ctl": profile.ctl,
         "atl": profile.atl,
         "tsb": profile.tsb,
@@ -591,9 +595,9 @@ async def record_workout_feedback(
                 entry.actual_distance_m = detail.distance_m
                 entry.actual_duration_s = detail.duration_s
                 entry.avg_hr = round(detail.avg_hr) if detail.avg_hr is not None else None
-                if detail.sport == RUNNING:
-                    entry.actual_intensity = pace(
-                        avg_pace_sec_per_km(detail.duration_s, detail.distance_m)
+                if is_registered(detail.sport):
+                    entry.actual_intensity = get_sport(detail.sport).activity_intensity(
+                        detail.distance_m, detail.duration_s
                     )
             except Exception as err:
                 logger.debug("Activity detail fetch failed for %s: %s", activity_id, err)

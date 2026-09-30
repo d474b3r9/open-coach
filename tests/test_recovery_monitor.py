@@ -296,6 +296,7 @@ class TestRecommendAdaptation:
             self._green_recovery(),
             make_planned_workout(wtype="tempo", description="Tempo 8km"),
             make_profile(),
+            sport="running",
         )
         assert rec.action == "proceed"
 
@@ -304,6 +305,7 @@ class TestRecommendAdaptation:
             self._yellow_recovery(),
             make_planned_workout(wtype="tempo", description="Tempo 8km"),
             make_profile(),
+            sport="running",
         )
         assert rec.action == "reduce_intensity"
 
@@ -312,6 +314,7 @@ class TestRecommendAdaptation:
             self._yellow_recovery(),
             make_planned_workout(wtype="easy", description="Easy run"),
             make_profile(),
+            sport="running",
         )
         assert rec.action == "proceed"
 
@@ -320,6 +323,7 @@ class TestRecommendAdaptation:
             self._yellow_recovery(),
             make_planned_workout(wtype="long_run", description="Long run 20km", dist=20.0),
             make_profile(),
+            sport="running",
         )
         assert rec.action == "reduce_volume"
 
@@ -328,6 +332,7 @@ class TestRecommendAdaptation:
             self._red_recovery(),
             make_planned_workout(wtype="tempo", description="Tempo 8km"),
             make_profile(),
+            sport="running",
         )
         assert rec.action == "swap_to_easy"
 
@@ -336,6 +341,7 @@ class TestRecommendAdaptation:
             self._red_recovery(),
             make_planned_workout(wtype="long_run", description="Long run 25km"),
             make_profile(),
+            sport="running",
         )
         assert rec.action == "rest_day"
 
@@ -344,6 +350,7 @@ class TestRecommendAdaptation:
             self._red_recovery(),
             make_planned_workout(wtype="easy", description="Easy run"),
             make_profile(),
+            sport="running",
         )
         assert rec.action == "swap_to_easy"
 
@@ -360,6 +367,7 @@ class TestRecommendAdaptation:
             self._yellow_recovery(),
             make_planned_workout(wtype="tempo", description="Tempo 8km", dist=8.0),
             make_profile(),
+            sport="running",
         )
         assert rec.adjusted_workout is not None
         assert len(rec.adjusted_workout) > 0
@@ -369,6 +377,7 @@ class TestRecommendAdaptation:
             self._red_recovery(),
             make_planned_workout(wtype="intervals", description="5x1000m"),
             make_profile(vdot=50.0),
+            sport="running",
         )
         assert rec.adjusted_workout is not None
         # Should contain pace info (format M:SS)

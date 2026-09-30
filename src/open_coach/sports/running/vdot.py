@@ -13,6 +13,8 @@ from __future__ import annotations
 
 import math
 
+from open_coach.units import format_time  # noqa: F401 — re-exported for running callers
+
 # Canonical race distances in meters (labels vary per surface; values do not).
 HALF_MARATHON_M = 21097.5
 MARATHON_M = 42195.0
@@ -169,14 +171,4 @@ def format_pace(seconds_per_km: float) -> str:
     """Format pace as an "M:SS" string (no unit suffix)."""
     minutes = int(seconds_per_km // 60)
     secs = int(seconds_per_km % 60)
-    return f"{minutes}:{secs:02d}"
-
-
-def format_time(total_seconds: float) -> str:
-    """Format time as H:MM:SS or MM:SS string."""
-    hours = int(total_seconds // 3600)
-    minutes = int((total_seconds % 3600) // 60)
-    secs = int(total_seconds % 60)
-    if hours > 0:
-        return f"{hours}:{minutes:02d}:{secs:02d}"
     return f"{minutes}:{secs:02d}"

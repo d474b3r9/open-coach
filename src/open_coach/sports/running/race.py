@@ -1,6 +1,7 @@
 """Race prediction, pacing strategy, and readiness assessment.
 
-Pure computation — no I/O.  All watch data access happens in tools/race.py.
+Pure computation — no I/O. ``RunningRace`` is the running ``RaceModel``
+(``Sport.race``) the race tools dispatch to.
 
 Provides:
 - predict_race_times: VDOT-based predictions with TSB confidence intervals
@@ -11,20 +12,58 @@ Provides:
 from __future__ import annotations
 
 from datetime import date
-from typing import Literal
+from typing import Any, Literal
+
+from pydantic import BaseModel
 
 from open_coach.models import (
     AthleteProfile,
-    PacingSplit,
-    PacingStrategy,
-    RacePrediction,
     RaceReadiness,
     ReadinessComponent,
     TrainingGoal,
     TrainingPlan,
 )
 from open_coach.sports.running import RUNNING, vdot_of
-from open_coach.vdot import HALF_MARATHON_M, MARATHON_M, predict_time
+from open_coach.sports.running.vdot import (
+    HALF_MARATHON_M,
+    MARATHON_M,
+    format_pace,
+    format_time,
+    predict_time,
+)
+
+
+class RacePrediction(BaseModel):
+    """Predicted race time with confidence interval."""
+
+    distance_label: str  # "5K", "10K", "Half Marathon", "Marathon"
+    distance_m: float
+    predicted_time_s: float
+    confidence_low_s: float  # optimistic bound (faster)
+    confidence_high_s: float  # conservative bound (slower)
+    predicted_pace_sec_per_km: float
+
+
+class PacingSplit(BaseModel):
+    """A single split in a pacing strategy."""
+
+    split_km: float  # size of the split (1.0, 5.0)
+    split_label: str  # "km 1", "5-10K"
+    target_pace_sec_per_km: float
+    cumulative_time_s: float
+    effort_note: str  # coaching cue
+
+
+class PacingStrategy(BaseModel):
+    """Complete pacing plan for a race."""
+
+    distance_label: str
+    distance_m: float
+    strategy_name: str  # "even_effort", "negative_split", "conservative_start"
+    target_time_s: float
+    splits: list[PacingSplit]
+    key_guidance: list[str]  # 3-5 coaching bullet points
+
 
 # ── Standard race distances ──
 
@@ -733,3 +772,73 @@ def assess_race_readiness(
         recommendations=recommendations,
         days_to_race=days_to_race,
     )
+
+
+# ── RaceModel (tool payloads) ──
+
+_NO_VDOT = {"error": "No VDOT available. Run onboarding or enter a race result first."}
+
+
+class RunningRace:
+    """Running race predictions, pacing and readiness, as tool payloads."""
+
+    def predictions(self, profile: AthleteProfile, goal: TrainingGoal | None) -> dict[str, Any]:
+        vdot = vdot_of(profile)
+        if vdot is None:
+            return _NO_VDOT
+        predictions = predict_race_times(
+            vdot=vdot,
+            ctl=profile.ctl,
+            tsb=profile.tsb,
+            target_distance_m=goal.distance_m if goal else None,
+        )
+        formatted = [
+            {
+                "distance": p.distance_label,
+                "predicted": format_time(p.predicted_time_s),
+                "range_low": format_time(p.confidence_low_s),
+                "range_high": format_time(p.confidence_high_s),
+                "pace": f"{format_pace(p.predicted_pace_sec_per_km)}/km",
+            }
+            for p in predictions
+        ]
+        return {
+            "vdot": round(vdot, 1),
+            "goal": goal.race_name if goal else None,
+            "fitness_context": {
+                "ctl": round(profile.ctl, 1) if profile.ctl else None,
+                "tsb": f"{profile.tsb:+.0f}" if profile.tsb is not None else "unknown",
+            },
+            "predictions": formatted,
+        }
+
+    def pacing(self, profile: AthleteProfile, goal: TrainingGoal, strategy: str) -> dict[str, Any]:
+        vdot = vdot_of(profile)
+        if vdot is None:
+            return _NO_VDOT
+        # Use target time if set, otherwise predict from VDOT
+        target_time = goal.target_time_s or predict_time(vdot, goal.distance_m)
+        pacing = build_pacing_strategy(goal.distance_m, target_time, strategy)
+        splits = [
+            {
+                "segment": s.split_label,
+                "distance_km": s.split_km,
+                "pace": f"{format_pace(s.target_pace_sec_per_km)}/km",
+                "cumulative": format_time(s.cumulative_time_s),
+                "note": s.effort_note,
+            }
+            for s in pacing.splits
+        ]
+        return {
+            "race": goal.race_name,
+            "distance": pacing.distance_label,
+            "strategy": pacing.strategy_name,
+            "target_time": format_time(pacing.target_time_s),
+            "splits": splits,
+            "key_guidance": pacing.key_guidance,
+        }
+
+    def readiness(
+        self, profile: AthleteProfile, goal: TrainingGoal, plan: TrainingPlan | None
+    ) -> RaceReadiness:
+        return assess_race_readiness(profile, goal, plan)

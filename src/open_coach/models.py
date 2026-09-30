@@ -15,35 +15,11 @@ Language = Literal["en", "fr"]
 # ── Core models ──
 
 
-class PaceRange(BaseModel):
-    """Pace range in seconds per kilometer."""
-
-    min_pace_sec_per_km: float  # faster (lower number)
-    max_pace_sec_per_km: float  # slower (higher number)
-
-
 class HRRange(BaseModel):
     """Heart rate range in BPM."""
 
     min_bpm: int
     max_bpm: int
-
-
-class ZoneInfo(BaseModel):
-    """Combined pace and HR info for a training zone."""
-
-    pace: PaceRange | None = None
-    hr: HRRange | None = None
-
-
-class TrainingZones(BaseModel):
-    """Training zones derived from VDOT and/or HR."""
-
-    easy: ZoneInfo
-    marathon: ZoneInfo
-    threshold: ZoneInfo
-    interval: ZoneInfo
-    repetition: ZoneInfo
 
 
 class ActivitySummary(BaseModel):
@@ -324,38 +300,6 @@ class WorkoutRegistry(BaseModel):
 
 
 # ── Race prediction models (Phase 4) ──
-
-
-class RacePrediction(BaseModel):
-    """Predicted race time with confidence interval."""
-
-    distance_label: str  # "5K", "10K", "Half Marathon", "Marathon"
-    distance_m: float
-    predicted_time_s: float
-    confidence_low_s: float  # optimistic bound (faster)
-    confidence_high_s: float  # conservative bound (slower)
-    predicted_pace_sec_per_km: float
-
-
-class PacingSplit(BaseModel):
-    """A single split in a pacing strategy."""
-
-    split_km: float  # size of the split (1.0, 5.0)
-    split_label: str  # "km 1", "5-10K"
-    target_pace_sec_per_km: float
-    cumulative_time_s: float
-    effort_note: str  # coaching cue
-
-
-class PacingStrategy(BaseModel):
-    """Complete pacing plan for a race."""
-
-    distance_label: str
-    distance_m: float
-    strategy_name: str  # "even_effort", "negative_split", "conservative_start"
-    target_time_s: float
-    splits: list[PacingSplit]
-    key_guidance: list[str]  # 3-5 coaching bullet points
 
 
 class ReadinessComponent(BaseModel):

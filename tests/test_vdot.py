@@ -5,7 +5,7 @@ Reference values verified against vdoto2.com and Daniels-Gilbert equations.
 
 import pytest
 
-from open_coach.vdot import (
+from open_coach.sports.running.vdot import (
     calculate_vdot,
     format_pace,
     format_time,

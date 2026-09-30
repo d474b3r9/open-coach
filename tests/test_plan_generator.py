@@ -7,14 +7,14 @@ from datetime import timedelta
 import pytest
 
 from open_coach.models import Language, TrainingConstraints, TrainingGoal
-from open_coach.plan_generator import (
+from open_coach.periodization import (
     WeekType,
-    _assign_week_types,
-    _get_available_day_indices,
-    _volume_for_week,
-    generate_plan,
+    assign_week_types,
+    available_day_indices,
+    volume_for_week,
 )
 from open_coach.sports.running import pace_of
+from open_coach.sports.running.plan import _peak_weeks, _taper_weeks, generate_plan
 from tests.conftest import NEXT_MONDAY, make_goal
 
 LANGUAGES: tuple[Language, ...] = ("en", "fr")
@@ -24,6 +24,11 @@ LANGUAGES: tuple[Language, ...] = ("en", "fr")
 
 def _constraints(**kwargs) -> TrainingConstraints:
     return TrainingConstraints(**kwargs)
+
+
+def _assign_week_types(total_weeks: int, distance_m: float) -> list[WeekType]:
+    """Running week types: taper / peak lengths derived from the race distance."""
+    return assign_week_types(total_weeks, _taper_weeks(distance_m), _peak_weeks(distance_m))
 
 
 # ── Week type assignment ───────────────────────────────────────────────────────
@@ -71,24 +76,24 @@ class TestAssignWeekTypes:
 class TestVolumeForWeek:
     def test_peak_week_returns_peak_km(self):
         week_types: list[WeekType] = ["base", "build", "peak", "taper"]
-        vol = _volume_for_week(2, "peak", 40.0, 60.0, week_types)
+        vol = volume_for_week(2, "peak", 40.0, 60.0, week_types)
         assert vol == 60.0
 
     def test_taper_first_week_is_80_percent(self):
         week_types: list[WeekType] = ["base", "build", "peak", "taper"]
-        vol = _volume_for_week(3, "taper", 40.0, 60.0, week_types)
+        vol = volume_for_week(3, "taper", 40.0, 60.0, week_types)
         assert vol == pytest.approx(60.0 * 0.80, abs=1.0)
 
     def test_recovery_week_is_70_percent_of_expected(self):
         week_types: list[WeekType] = ["base", "recovery", "build", "peak", "taper"]
-        expected_base = _volume_for_week(1, "base", 40.0, 60.0, week_types)
-        recovery_vol = _volume_for_week(1, "recovery", 40.0, 60.0, week_types)
+        expected_base = volume_for_week(1, "base", 40.0, 60.0, week_types)
+        recovery_vol = volume_for_week(1, "recovery", 40.0, 60.0, week_types)
         assert recovery_vol < expected_base
 
     def test_first_week_close_to_start_km(self):
         week_types: list[WeekType] = ["base"] * 8
         week_types += ["peak", "taper"]
-        vol = _volume_for_week(0, "base", 40.0, 60.0, week_types)
+        vol = volume_for_week(0, "base", 40.0, 60.0, week_types)
         assert vol == pytest.approx(40.0, abs=5.0)
 
 
@@ -98,7 +103,7 @@ class TestVolumeForWeek:
 class TestGetAvailableDayIndices:
     def test_explicit_days_respected(self):
         c = _constraints(available_days=["monday", "wednesday", "friday", "sunday"])
-        indices = _get_available_day_indices(c)
+        indices = available_day_indices(c)
         assert indices == [0, 2, 4, 6]
 
     def test_max_sessions_respected(self):
@@ -106,12 +111,12 @@ class TestGetAvailableDayIndices:
             available_days=["monday", "tuesday", "wednesday", "thursday", "friday"],
             max_sessions_per_week=3,
         )
-        indices = _get_available_day_indices(c)
+        indices = available_day_indices(c)
         assert len(indices) == 3
 
     def test_default_days_when_empty(self):
         c = _constraints()
-        indices = _get_available_day_indices(c)
+        indices = available_day_indices(c)
         assert len(indices) > 0
 
 
@@ -159,7 +164,7 @@ class TestGeneratePlan:
         assert fr_long.description.startswith("Sortie longue ")
 
     def test_both_languages_convert_to_the_same_garmin_structure(self):
-        from open_coach.plan_to_dsl import convert_planned_workout
+        from open_coach.sports.running.plan_to_dsl import convert_planned_workout
 
         goal = make_goal(10_000, weeks_ahead=8)
         c = _constraints()
@@ -217,8 +222,8 @@ class TestGeneratePlan:
         # Regression: generated tempo descriptions ("2km warmup + 3km @
         # threshold") were refused by plan_to_dsl, and interval recoveries
         # ("(400m recovery)") were silently dropped.
-        from open_coach.plan_to_dsl import convert_planned_workout
-        from open_coach.vdot import training_paces
+        from open_coach.sports.running.plan_to_dsl import convert_planned_workout
+        from open_coach.sports.running.vdot import training_paces
         from open_coach.workout_dsl import RecoveryStep, RepeatBlock
 
         goal = make_goal(10_000, weeks_ahead=10)

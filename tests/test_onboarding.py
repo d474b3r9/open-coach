@@ -3,14 +3,13 @@
 from datetime import date, timedelta
 
 from open_coach.models import ActivitySummary
-from open_coach.onboarding import (
+from open_coach.onboarding import build_profile_from_activities, compute_training_load
+from open_coach.sports.running import vdot_of
+from open_coach.sports.running.profile import (
     analyze_training_patterns,
-    build_profile_from_activities,
-    compute_training_load,
     compute_vdot_from_prs,
     detect_personal_records,
 )
-from open_coach.sports.running import vdot_of
 
 
 def _activity(
