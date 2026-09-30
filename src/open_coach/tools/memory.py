@@ -44,8 +44,9 @@ from open_coach.models import (
 from open_coach.onboarding import build_profile_from_activities
 from open_coach.plan_renderer import delete_plan_markdown, write_plan_markdown
 from open_coach.server import mcp
-from open_coach.sports.base import SportKey
-from open_coach.sports.running import RUNNING, avg_pace_sec_per_km, pace, set_vdot, vdot_of
+from open_coach.sports.base import FitnessMarker, SportKey
+from open_coach.sports.registry import get_sport
+from open_coach.sports.running import RUNNING, avg_pace_sec_per_km, pace, vdot_of
 
 logger = logging.getLogger(__name__)
 
@@ -316,17 +317,18 @@ async def bootstrap_athlete_profile(ctx: Context | None = None) -> dict:
     # Fetch 6 months of activities
     from open_coach.models import ActivitySummary
 
-    runs = await watch.list_runs(date.today() - timedelta(days=180), date.today())
+    recorded = await watch.list_activities(date.today() - timedelta(days=180), date.today())
     activities = []
-    for a in runs:
+    for a in recorded:
         dist = a.distance_m
         dur = a.duration_s
-        if dist > 0 and dur > 0:
+        # A run needs a distance (records, pattern); any sport with a duration loads.
+        if dur > 0 and (dist > 0 or a.sport != RUNNING):
             activities.append(
                 ActivitySummary(
                     activity_id=a.activity_id or 0,
                     date=date.fromisoformat(a.start_time_local[:10]),
-                    sport=RUNNING,
+                    sport=a.sport,
                     distance_m=dist,
                     duration_s=dur,
                     avg_hr=round(a.avg_hr) if a.avg_hr is not None else None,
@@ -383,11 +385,15 @@ async def update_athlete_profile(
     resting_hr: int | None = None,
     threshold_hr: int | None = None,
     weight_kg: float | None = None,
-    vdot_override: float | None = None,
+    fitness_override: float | None = None,
+    sport: SportKey = "running",
     language: Language | None = None,
     ctx: Context | None = None,
 ) -> dict:
     """Update athlete profile fields. Only provided fields are changed.
+
+    ``fitness_override`` sets the headline fitness number of ``sport`` by hand
+    (running: VDOT); every other field is shared by all sports.
 
     ``language`` (``"en"`` | ``"fr"``) selects the language of text the coach
     generates itself: plan markdown copies and session descriptions.
@@ -404,8 +410,10 @@ async def update_athlete_profile(
         profile.threshold_hr = threshold_hr
     if weight_kg is not None:
         profile.weight_kg = weight_kg
-    if vdot_override is not None:
-        set_vdot(profile, vdot_override, "manual override")
+    if fitness_override is not None:
+        profile.sport_profile(sport, create=True).fitness = FitnessMarker(
+            metric=get_sport(sport).fitness_metric, value=fitness_override, source="manual override"
+        )
     if language is not None:
         profile.language = language
 
@@ -583,9 +591,10 @@ async def record_workout_feedback(
                 entry.actual_distance_m = detail.distance_m
                 entry.actual_duration_s = detail.duration_s
                 entry.avg_hr = round(detail.avg_hr) if detail.avg_hr is not None else None
-                entry.actual_intensity = pace(
-                    avg_pace_sec_per_km(detail.duration_s, detail.distance_m)
-                )
+                if detail.sport == RUNNING:
+                    entry.actual_intensity = pace(
+                        avg_pace_sec_per_km(detail.duration_s, detail.distance_m)
+                    )
             except Exception as err:
                 logger.debug("Activity detail fetch failed for %s: %s", activity_id, err)
 

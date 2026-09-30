@@ -26,6 +26,7 @@ from tests.conftest import StubGarmin, mock_ctx
 
 _WORKOUT_JSON = json.dumps(
     {
+        "sport": "running",
         "name": "10x1min @ threshold",
         "steps": [
             {"type": "warmup", "duration": {"seconds": 600}},
@@ -36,7 +37,7 @@ _WORKOUT_JSON = json.dumps(
                     {
                         "type": "interval",
                         "duration": {"seconds": 60},
-                        "pace": {"min_sec_per_km": 250, "max_sec_per_km": 265},
+                        "target": {"kind": "pace", "min_sec_per_km": 250, "max_sec_per_km": 265},
                     },
                     {"type": "recovery", "duration": {"seconds": 60}},
                 ],
@@ -69,7 +70,7 @@ class TestLoadDsl:
         assert dsl.name == "10x1min @ threshold"
 
     def test_text_input_with_name(self):
-        dsl = _load_dsl(_TEXT_DSL, name="10x1min @ threshold")
+        dsl = _load_dsl(_TEXT_DSL, name="10x1min @ threshold", sport="running")
         assert dsl.name == "10x1min @ threshold"
         assert dsl.estimated_duration_s > 0
 
@@ -81,7 +82,7 @@ class TestLoadDsl:
         assert _load_dsl(dsl) is dsl
 
     def test_text_input_without_name_raises(self):
-        with pytest.raises(ValueError, match="name is required"):
+        with pytest.raises(ValueError, match="name and sport are required"):
             _load_dsl(_TEXT_DSL)
 
 
@@ -90,7 +91,7 @@ class TestLoadDsl:
 
 class TestUploadWorkout:
     async def test_uploads_and_registers(self, storage):
-        garmin = StubGarmin(upload_running_workout={"workoutId": 555})
+        garmin = StubGarmin(upload_workout={"workoutId": 555})
         ctx = mock_ctx(storage=storage, garmin=garmin)
         result = await upload_workout(_WORKOUT_JSON, ctx=ctx)
 
@@ -113,10 +114,10 @@ class TestUploadWorkout:
         ctx = mock_ctx(storage=storage, garmin=StubGarmin())
         result = await upload_workout(_TEXT_DSL, ctx=ctx)
         assert "error" in result
-        assert "name is required" in result["error"]
+        assert "name and sport are required" in result["error"]
 
     async def test_build_and_push_bad_date_returns_error(self, storage):
-        garmin = StubGarmin(upload_running_workout={"workoutId": 1})
+        garmin = StubGarmin(upload_workout={"workoutId": 1})
         ctx = mock_ctx(storage=storage, garmin=garmin)
         result = await build_and_push_workout(_WORKOUT_JSON, "2026-13-45", ctx=ctx)
         assert "error" in result
@@ -129,9 +130,11 @@ class TestUploadWorkout:
         assert "error" in result
 
     async def test_text_dsl_upload(self, storage):
-        garmin = StubGarmin(upload_running_workout={"workoutId": 900})
+        garmin = StubGarmin(upload_workout={"workoutId": 900})
         ctx = mock_ctx(storage=storage, garmin=garmin)
-        result = await upload_workout(_TEXT_DSL, name="Threshold — 3×10 min", ctx=ctx)
+        result = await upload_workout(
+            _TEXT_DSL, name="Threshold — 3×10 min", sport="running", ctx=ctx
+        )
         assert result["workout_id"] == 900
         assert result["name"] == "Threshold — 3×10 min"
         assert storage.load_workout_registry().find(900) is not None
@@ -175,7 +178,7 @@ class TestScheduleWorkout:
 class TestBuildAndPushWorkout:
     async def test_uploads_then_schedules(self, storage):
         garmin = StubGarmin(
-            upload_running_workout={"workoutId": 321},
+            upload_workout={"workoutId": 321},
             schedule_workout={"workoutScheduleId": 654},
         )
         ctx = mock_ctx(storage=storage, garmin=garmin)

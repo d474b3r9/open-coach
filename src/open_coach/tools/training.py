@@ -156,6 +156,6 @@ async def get_training_load(days: int = LOAD_WINDOW_DAYS, ctx: Context | None = 
         "interpretation": interpret_tsb(current.tsb),
         "threshold_hr_used": snapshot.threshold_hr,
         "days_analyzed": days,
-        "activities_count": snapshot.runs_count,
+        "activities_count": snapshot.activities_count,
         "as_of": today.isoformat(),
     }

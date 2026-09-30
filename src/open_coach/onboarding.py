@@ -224,7 +224,7 @@ def build_profile_from_activities(
     """Build a complete athlete profile from activity history.
 
     Args:
-        activities: List of activity summaries (ideally 6 months).
+        activities: Activity summaries of every sport (ideally 6 months).
         personal_records: PRs reported by the watch platform
             (``WatchProvider.personal_records``). Merged on top of the
             activity-inferred PRs — the platform wins per distance because its
@@ -233,10 +233,12 @@ def build_profile_from_activities(
     Returns:
         AthleteProfile with PRs, VDOT, patterns, and training load.
     """
-    detected = detect_personal_records(activities)
+    # Records, VDOT and pattern are running data; the load counts every sport.
+    runs = [a for a in activities if a.sport == RUNNING]
+    detected = detect_personal_records(runs)
     prs = merge_personal_records(personal_records or [], detected)
     vdot, vdot_source = compute_vdot_from_prs(prs)
-    pattern = analyze_training_patterns(activities)
+    pattern = analyze_training_patterns(runs)
     ctl, atl, tsb = compute_training_load(activities)
 
     running = SportProfile(personal_records=prs, training_pattern=pattern)

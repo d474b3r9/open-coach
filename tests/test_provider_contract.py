@@ -15,15 +15,16 @@ from typing import Any
 
 from open_coach.models import PersonalRecord
 from open_coach.providers import (
+    Activity,
     ActivityDetail,
     DailyHeartRate,
     RecoverySignals,
-    RunActivity,
     WatchProvider,
     WatchWorkout,
 )
+from open_coach.sports.base import SportKey
 from open_coach.tools import activities, health, memory, plans, recovery, training, workout
-from open_coach.tools.activities import get_activity_details, get_recent_runs
+from open_coach.tools.activities import get_activity_details, get_recent_activities
 from open_coach.tools.health import get_health_snapshot, get_training_status
 from open_coach.tools.memory import (
     archive_active_plan,
@@ -57,7 +58,8 @@ class FakeWatch:
     def __init__(self) -> None:
         today = date.today()
         self.runs = [
-            RunActivity(
+            Activity(
+                sport="running",
                 activity_id=i,
                 name=f"Run {i}",
                 start_time_local=f"{today - timedelta(days=i * 3)} 07:00:00",
@@ -72,11 +74,17 @@ class FakeWatch:
         self.schedules: dict[int, tuple[int, str]] = {}
         self.deleted: list[int] = []
 
-    async def list_runs(self, start: date, end: date) -> list[RunActivity]:
-        return self.runs
+    async def list_activities(
+        self, start: date, end: date, sports: frozenset[SportKey] | None = None
+    ) -> list[Activity]:
+        if sports is None:
+            return self.runs
+        return [a for a in self.runs if a.sport in sports]
 
     async def activity_detail(self, activity_id: int) -> ActivityDetail:
-        return ActivityDetail(distance_m=8000, duration_s=2400, avg_hr=147.4, summary={"k": 1})
+        return ActivityDetail(
+            sport="running", distance_m=8000, duration_s=2400, avg_hr=147.4, summary={"k": 1}
+        )
 
     async def personal_records(self) -> list[PersonalRecord]:
         return []
@@ -127,7 +135,7 @@ def test_fake_watch_satisfies_the_protocol() -> None:
 
 async def test_activity_tools(storage) -> None:
     ctx = _ctx(storage, FakeWatch())
-    runs = await get_recent_runs(ctx=ctx)
+    runs = await get_recent_activities(ctx=ctx)
     assert runs["count"] == 5
     assert runs["activities"][0]["avg_pace_sec_per_km"] == 300.0
     detail = await get_activity_details(activity_id=1, ctx=ctx)
@@ -172,7 +180,7 @@ async def test_workout_lifecycle_tools(storage) -> None:
     watch = FakeWatch()
     ctx = _ctx(storage, watch)
 
-    up = await upload_workout(workout_json=DSL, name="W1", ctx=ctx)
+    up = await upload_workout(workout_json=DSL, name="W1", sport="running", ctx=ctx)
     wid = up["workout_id"]
     sch = await schedule_watch_workout(workout_id=wid, target_date="2026-10-14", ctx=ctx)
     assert watch.schedules[sch["schedule_id"]] == (wid, "2026-10-14")
@@ -191,13 +199,13 @@ async def test_calendar_cleanup_tools(storage) -> None:
     watch = FakeWatch()
     ctx = _ctx(storage, watch)
     pushed = await build_and_push_workout(
-        workout_json=DSL, name="W2", target_date="2026-10-16", ctx=ctx
+        workout_json=DSL, name="W2", sport="running", target_date="2026-10-16", ctx=ctx
     )
     assert pushed["status"] == "uploaded_and_scheduled"
     cleaned = await clean_watch_calendar(start_date="2026-10-01", end_date="2026-10-31", ctx=ctx)
     assert cleaned["deleted"] == 1
 
-    await upload_workout(workout_json=DSL, name="W3", ctx=ctx)  # registered
+    await upload_workout(workout_json=DSL, name="W3", sport="running", ctx=ctx)  # registered
     watch.library[555] = "hand-made"  # not created by the coach
     purged = await purge_watch_workouts(ctx=ctx)
     assert purged["deleted"] == 1

@@ -1,4 +1,4 @@
-"""Convert a DSLWorkout into a garminconnect RunningWorkout payload.
+"""Convert a DSLWorkout into a garminconnect workout payload (one class per sport).
 
 The Garmin Connect workout API represents workouts as a tree of steps.
 This module translates the structured DSL into that tree format.
@@ -12,13 +12,17 @@ End conditions:
 - time       → conditionTypeId=2, conditionTypeKey="time",     value=seconds
 - distance   → conditionTypeId=3, conditionTypeKey="distance", value=metres
 
-Pace/speed targets (Garmin uses m/s):
-- targetTypeId=4 ("speed.zone"), targetValueOne=slower m/s, targetValueTwo=faster m/s
+Targets:
+- pace       → targetTypeId=6 ("pace.zone"), values in m/s (see _target_fields)
+- heart rate → targetTypeId=4 ("heart.rate.zone"), targetValueOne/Two = low/high bpm
 """
 
 from __future__ import annotations
 
+from typing import Any
+
 from garminconnect.workout import (
+    BaseWorkout,
     ExecutableStep,
     RepeatGroup,
     RunningWorkout,
@@ -26,10 +30,12 @@ from garminconnect.workout import (
     create_repeat_group,
 )
 
+from open_coach.sports.base import SportKey
 from open_coach.workout_dsl import (
     CooldownStep,
     DSLWorkout,
     Duration,
+    HeartRateTarget,
     IntervalStep,
     PaceTarget,
     RecoveryStep,
@@ -64,7 +70,19 @@ _TARGET_NO_TARGET = {
     "displayOrder": 1,
 }
 
-_RUNNING_SPORT = {"sportTypeId": 1, "sportTypeKey": "running", "displayOrder": 1}
+# Coach sport → (garminconnect workout class, Garmin sportType). Add a sport here
+# with its class: CyclingWorkout (sportTypeId 2), SwimmingWorkout (4)…
+_SPORTS: dict[SportKey, tuple[type[BaseWorkout], dict[str, Any]]] = {
+    "running": (
+        RunningWorkout,
+        {"sportTypeId": 1, "sportTypeKey": "running", "displayOrder": 1},
+    ),
+}
+_TARGET_HEART_RATE = {
+    "workoutTargetTypeId": 4,
+    "workoutTargetTypeKey": "heart.rate.zone",
+    "displayOrder": 4,
+}
 _STEP_WARMUP = {"stepTypeId": 1, "stepTypeKey": "warmup", "displayOrder": 1}
 _STEP_COOLDOWN = {"stepTypeId": 2, "stepTypeKey": "cooldown", "displayOrder": 2}
 _STEP_INTERVAL = {"stepTypeId": 3, "stepTypeKey": "interval", "displayOrder": 3}
@@ -84,13 +102,16 @@ def _end_condition(duration: Duration) -> tuple[dict, float | None]:
     return _COND_DISTANCE, duration.distance_m
 
 
-def _pace_target_type(pace: PaceTarget | None) -> dict:
-    """Return ONLY the targetType dict (without target values).
+def _target_fields(target: PaceTarget | HeartRateTarget | None) -> dict[str, Any]:
+    """Return the step's ``targetType`` dict plus its target values.
 
     The values (targetValueOne/Two) must be set at the **step level**,
     NOT inside the targetType dict — Garmin silently drops them otherwise.
 
-    We use **`pace.zone` (id=6)**, not `speed.zone` (id=5). Despite both
+    Heart rate uses ``heart.rate.zone`` (id=4) with a custom bpm range
+    (targetValueOne = low, targetValueTwo = high).
+
+    For pace we use **`pace.zone` (id=6)**, not `speed.zone` (id=5). Despite both
     storing values as m/s, Garmin Connect renders them differently:
     - `pace.zone` → display as min:sec /km (what runners want)
     - `speed.zone` → display as km/h (good for cycling, weird for running)
@@ -99,38 +120,43 @@ def _pace_target_type(pace: PaceTarget | None) -> dict:
     `OPEN` — actually `pace.zone` per empirical Garmin Connect inspection
     of a manually-edited running workout.
     """
-    if pace is None:
-        return _TARGET_NO_TARGET
+    if target is None:
+        return {"targetType": _TARGET_NO_TARGET}
+    if isinstance(target, HeartRateTarget):
+        return {
+            "targetType": _TARGET_HEART_RATE,
+            "targetValueOne": target.min_bpm,
+            "targetValueTwo": target.max_bpm,
+        }
+    slower_ms, faster_ms = target.to_speed_ms()
+    # For pace.zone, Garmin convention is INVERSE of speed.zone:
+    # - targetValueOne = faster speed (m/s higher) = faster pace (min/km lower)
+    # - targetValueTwo = slower speed (m/s lower) = slower pace (min/km higher)
+    # Confirmed by inspecting a manually-edited workout in Garmin Connect web.
     return {
-        "workoutTargetTypeId": 6,
-        "workoutTargetTypeKey": "pace.zone",
-        "displayOrder": 6,
+        "targetType": {
+            "workoutTargetTypeId": 6,
+            "workoutTargetTypeKey": "pace.zone",
+            "displayOrder": 6,
+        },
+        "targetValueOne": faster_ms,
+        "targetValueTwo": slower_ms,
     }
 
 
 def _build_executable(
     step_type_dict: dict,
     duration: Duration,
-    pace: PaceTarget | None,
+    target: PaceTarget | HeartRateTarget | None,
     order: int,
 ) -> ExecutableStep:
     condition, value = _end_condition(duration)
-    extra: dict = {}
-    if pace is not None:
-        slower_ms, faster_ms = pace.to_speed_ms()
-        # For pace.zone, Garmin convention is INVERSE of speed.zone:
-        # - targetValueOne = faster speed (m/s higher) = faster pace (min/km lower)
-        # - targetValueTwo = slower speed (m/s lower) = slower pace (min/km higher)
-        # Confirmed by inspecting a manually-edited workout in Garmin Connect web.
-        extra["targetValueOne"] = faster_ms
-        extra["targetValueTwo"] = slower_ms
     return ExecutableStep(
         stepOrder=order,
         stepType=step_type_dict,
         endCondition=condition,
         endConditionValue=value,
-        targetType=_pace_target_type(pace),
-        **extra,
+        **_target_fields(target),
     )
 
 
@@ -148,15 +174,22 @@ def _ends_with_lap_button(steps: list[ExecutableStep | RepeatGroup]) -> bool:
 # ── Public API ────────────────────────────────────────────────────────────────
 
 
-def build_running_workout(dsl: DSLWorkout) -> RunningWorkout:
-    """Convert a DSLWorkout to a garminconnect RunningWorkout ready for upload.
+def build_workout(dsl: DSLWorkout) -> BaseWorkout:
+    """Convert a DSLWorkout to the garminconnect workout of its sport, ready for upload.
 
     Args:
         dsl: Validated DSLWorkout.
 
     Returns:
-        RunningWorkout instance (call .to_dict() for the raw API payload).
+        A garminconnect workout (``RunningWorkout`` for running); call
+        ``.to_dict()`` for the raw API payload.
+
+    Raises:
+        ValueError: the sport has no Garmin workout mapping yet.
     """
+    if dsl.sport not in _SPORTS:
+        raise ValueError(f"No Garmin workout mapping for sport {dsl.sport!r}")
+    workout_cls, sport_type = _SPORTS[dsl.sport]
     top_steps: list[ExecutableStep | RepeatGroup] = []
     order = 1
 
@@ -176,13 +209,13 @@ def build_running_workout(dsl: DSLWorkout) -> RunningWorkout:
                 if isinstance(inner_step, IntervalStep):
                     inner.append(
                         _build_executable(
-                            _STEP_INTERVAL, inner_step.duration, inner_step.pace, inner_order
+                            _STEP_INTERVAL, inner_step.duration, inner_step.target, inner_order
                         )
                     )
                 elif isinstance(inner_step, RecoveryStep):
                     inner.append(
                         _build_executable(
-                            _STEP_RECOVERY, inner_step.duration, inner_step.pace, inner_order
+                            _STEP_RECOVERY, inner_step.duration, inner_step.target, inner_order
                         )
                     )
                 inner_order += 1
@@ -194,13 +227,13 @@ def build_running_workout(dsl: DSLWorkout) -> RunningWorkout:
         # automatic stop (see coaching-rules/references/dsl-conventions.md, Rule D).
         top_steps.append(_build_executable(_STEP_COOLDOWN, Duration(lap_button=True), None, order))
 
-    return RunningWorkout(
+    return workout_cls(
         workoutName=dsl.name,
         estimatedDurationInSecs=dsl.estimated_duration_s,
         workoutSegments=[
             WorkoutSegment(
                 segmentOrder=1,
-                sportType=_RUNNING_SPORT,
+                sportType=sport_type,
                 workoutSteps=top_steps,
             )
         ],

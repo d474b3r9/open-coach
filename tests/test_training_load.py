@@ -128,12 +128,12 @@ def test_load_series_extends_to_end_date_with_rest_days() -> None:
     ].date == _date(2026, 9, 5)
 
 
-def test_daily_tss_from_runs_skips_runs_without_hr() -> None:
+def test_daily_tss_from_activities_skips_runs_without_hr() -> None:
     from datetime import date as _date
 
-    from open_coach.training_load import daily_tss_from_runs
+    from open_coach.training_load import daily_tss_from_activities
 
-    daily = daily_tss_from_runs(
+    daily = daily_tss_from_activities(
         [
             ("2026-09-01 08:00:00", 3600.0, 150.0),
             ("2026-09-01 18:00:00", 1800.0, 150.0),

@@ -69,7 +69,7 @@ MCP client ──(.mcp.json / .cursor/mcp.json / .gemini/settings.json …)─�
 
 ### Watch providers
 
-Tools never call a vendor SDK: they go through a `WatchProvider` (`providers/base.py`, a `Protocol`) and its neutral models (`RunActivity`, `ActivityDetail`, `DailyHeartRate`, `RecoverySignals`, `PersonalRecord`). `providers/garmin.py` (`GarminProvider`) is the only implementation today; it owns every garminconnect call and every Garmin payload shape (`summaryDTO`, `dailySleepDTO`, PR `typeId`s…). All Garmin code lives in `providers/garmin*.py`: the provider, `garmin_auth.py` (login, token cache) and `garmin_workout.py` (DSL → Garmin workout). `tests/test_vendor_isolation.py` fails if `garmin` or `garminconnect` shows up anywhere else, apart from a short, justified allowlist.
+Tools never call a vendor SDK: they go through a `WatchProvider` (`providers/base.py`, a `Protocol`) and its neutral models (`Activity` — with its `sport`, a coached sport or `other` —, `ActivityDetail`, `DailyHeartRate`, `RecoverySignals`, `PersonalRecord`). `providers/garmin.py` (`GarminProvider`) is the only implementation today; it owns every garminconnect call and every Garmin payload shape (`summaryDTO`, `dailySleepDTO`, PR `typeId`s…). All Garmin code lives in `providers/garmin*.py`: the provider, `garmin_auth.py` (login, token cache) and `garmin_workout.py` (DSL → Garmin workout). `tests/test_vendor_isolation.py` fails if `garmin` or `garminconnect` shows up anywhere else, apart from a short, justified allowlist.
 
 `OPEN_COACH_WATCH` selects the provider (default `garmin`, the only supported value so far). Each upload in the workout registry records its `provider`.
 

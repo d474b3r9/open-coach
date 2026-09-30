@@ -51,11 +51,12 @@ Exact paces are computed by `calculate_vdot_from_race` and `get_training_zones`.
 
 ```json
 {
+  "sport": "running",
   "name": "Easy 8km",
   "steps": [
     {"type": "warmup",   "duration": {"distance_m": 1000}},
     {"type": "interval", "duration": {"distance_m": 6000},
-     "pace": {"min_sec_per_km": 315, "max_sec_per_km": 355}},
+     "target": {"kind": "pace", "min_sec_per_km": 315, "max_sec_per_km": 355}},
     {"type": "cooldown", "duration": {"distance_m": 1000}}
   ]
 }
@@ -65,11 +66,12 @@ Exact paces are computed by `calculate_vdot_from_race` and `get_training_zones`.
 
 ```json
 {
+  "sport": "running",
   "name": "Tempo 6km",
   "steps": [
     {"type": "warmup",   "duration": {"seconds": 600}},
     {"type": "interval", "duration": {"distance_m": 6000},
-     "pace": {"min_sec_per_km": 248, "max_sec_per_km": 263}},
+     "target": {"kind": "pace", "min_sec_per_km": 248, "max_sec_per_km": 263}},
     {"type": "cooldown", "duration": {"seconds": 600}}
   ]
 }
@@ -79,12 +81,13 @@ Exact paces are computed by `calculate_vdot_from_race` and `get_training_zones`.
 
 ```json
 {
+  "sport": "running",
   "name": "8x1000m I",
   "steps": [
     {"type": "warmup",  "duration": {"seconds": 900}},
     {"type": "repeat",  "count": 8, "steps": [
       {"type": "interval", "duration": {"distance_m": 1000},
-       "pace": {"min_sec_per_km": 228, "max_sec_per_km": 240}},
+       "target": {"kind": "pace", "min_sec_per_km": 228, "max_sec_per_km": 240}},
       {"type": "recovery", "duration": {"distance_m": 400}}
     ]},
     {"type": "cooldown", "duration": {"seconds": 600}}
@@ -96,12 +99,13 @@ Exact paces are computed by `calculate_vdot_from_race` and `get_training_zones`.
 
 ```json
 {
+  "sport": "running",
   "name": "10x200m R",
   "steps": [
     {"type": "warmup",  "duration": {"seconds": 900}},
     {"type": "repeat",  "count": 10, "steps": [
       {"type": "interval", "duration": {"distance_m": 200},
-       "pace": {"min_sec_per_km": 198, "max_sec_per_km": 210}},
+       "target": {"kind": "pace", "min_sec_per_km": 198, "max_sec_per_km": 210}},
       {"type": "recovery", "duration": {"seconds": 90}}
     ]},
     {"type": "cooldown", "duration": {"seconds": 600}}
@@ -113,11 +117,12 @@ Exact paces are computed by `calculate_vdot_from_race` and `get_training_zones`.
 
 ```json
 {
+  "sport": "running",
   "name": "Long Run 20km",
   "steps": [
     {"type": "warmup",   "duration": {"lap_button": true}},
     {"type": "interval", "duration": {"distance_m": 18000},
-     "pace": {"min_sec_per_km": 330, "max_sec_per_km": 360}},
+     "target": {"kind": "pace", "min_sec_per_km": 330, "max_sec_per_km": 360}},
     {"type": "cooldown", "duration": {"lap_button": true}}
   ]
 }

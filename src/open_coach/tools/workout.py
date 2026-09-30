@@ -19,6 +19,7 @@ from fastmcp import Context
 from pydantic import ValidationError
 
 from open_coach.server import mcp
+from open_coach.sports.base import SportKey
 from open_coach.tools._common import (
     compact_payload,
     get_watch,
@@ -33,10 +34,12 @@ from open_coach.workout_dsl import DSLWorkout, parse_dsl
 logger = logging.getLogger(__name__)
 
 
-def _load_dsl(workout: DSLWorkout | str, name: str | None = None) -> DSLWorkout:
+def _load_dsl(
+    workout: DSLWorkout | str, name: str | None = None, sport: SportKey | None = None
+) -> DSLWorkout:
     """Parse a workout given as a DSLWorkout object, DSLWorkout JSON or compact text DSL.
 
-    Text DSL input requires a separate ``name`` (JSON embeds its own).
+    Text DSL input requires a separate ``name`` and ``sport`` (JSON embeds its own).
     Raises ``ValueError`` / ``ValidationError`` on malformed input; tools wrap
     it through :func:`_load_dsl_or_error` so they never raise to the caller.
     """
@@ -45,15 +48,17 @@ def _load_dsl(workout: DSLWorkout | str, name: str | None = None) -> DSLWorkout:
     text = workout.strip()
     if text.startswith("{"):
         return DSLWorkout.model_validate_json(text)
-    if not name:
-        raise ValueError("name is required when passing text DSL (non-JSON input).")
-    return parse_dsl(name, text)
+    if not name or not sport:
+        raise ValueError("name and sport are required when passing text DSL (non-JSON input).")
+    return parse_dsl(name, text, sport)
 
 
-def _load_dsl_or_error(workout: DSLWorkout | str, name: str | None = None) -> DSLWorkout | dict:
+def _load_dsl_or_error(
+    workout: DSLWorkout | str, name: str | None = None, sport: SportKey | None = None
+) -> DSLWorkout | dict:
     """Soft-failing variant of :func:`_load_dsl`: returns ``{"error": ...}`` instead of raising."""
     try:
-        return _load_dsl(workout, name)
+        return _load_dsl(workout, name, sport)
     except (ValueError, ValidationError) as exc:
         return {"error": f"Invalid workout definition: {exc}"}
 
@@ -63,31 +68,37 @@ def _load_dsl_or_error(workout: DSLWorkout | str, name: str | None = None) -> DS
 
 @mcp.tool()
 async def upload_workout(
-    workout_json: DSLWorkout | str, name: str | None = None, ctx: Context | None = None
+    workout_json: DSLWorkout | str,
+    name: str | None = None,
+    sport: SportKey | None = None,
+    ctx: Context | None = None,
 ) -> dict:
-    """Build and upload a structured running workout to the watch platform.
+    """Build and upload a structured workout to the watch platform.
 
     Args:
         workout_json: Either a DSLWorkout object (preferred) or its JSON string:
             {
+              "sport": "running",
               "name": "10x1min @ threshold",
               "steps": [
                 {"type": "warmup",   "duration": {"seconds": 600}},
                 {"type": "repeat",   "count": 10, "steps": [
                   {"type": "interval", "duration": {"seconds": 60},
-                   "pace": {"min_sec_per_km": 250, "max_sec_per_km": 265}},
+                   "target": {"kind": "pace", "min_sec_per_km": 250, "max_sec_per_km": 265}},
                   {"type": "recovery", "duration": {"seconds": 60}}
                 ]},
                 {"type": "cooldown", "duration": {"seconds": 600}}
               ]
             }
-            ...or the compact text DSL (then `name` is required):
+            A heart-rate target is {"kind": "heart_rate", "min_bpm": 140, "max_bpm": 150}.
+            ...or the compact text DSL (then `name` and `sport` are required):
             WARMUP: 10min
             REPEAT: 10
               INTERVAL: 1min @ 4:10-4:25/km
-              RECOVERY: 1min
+              RECOVERY: 1min @ 120-135bpm
             COOLDOWN: 10min
         name: Workout name — required only for text DSL input.
+        sport: Sport of the workout (e.g. "running") — required only for text DSL input.
 
     Returns:
         {"workout_id": int, "name": str, "estimated_duration_s": int}
@@ -98,7 +109,7 @@ async def upload_workout(
         return watch_error()
     storage = ctx.lifespan_context["storage"]
 
-    dsl = _load_dsl_or_error(workout_json, name)
+    dsl = _load_dsl_or_error(workout_json, name, sport)
     if isinstance(dsl, dict):
         return dsl
     workout_id = await upload_and_register(watch, storage, dsl)
@@ -155,15 +166,18 @@ async def build_and_push_workout(
     workout_json: DSLWorkout | str,
     target_date: str,
     name: str | None = None,
+    sport: SportKey | None = None,
     ctx: Context | None = None,
 ) -> dict:
     """Build, upload and schedule a workout in one call.
 
     Args:
         workout_json: DSLWorkout object (preferred), its JSON string, or the
-            compact text DSL (same formats as upload_workout — text DSL requires `name`).
+            compact text DSL (same formats as upload_workout — text DSL requires
+            `name` and `sport`).
         target_date: Target date in YYYY-MM-DD format.
         name: Workout name — required only for text DSL input.
+        sport: Sport of the workout (e.g. "running") — required only for text DSL input.
 
     Returns:
         {"workout_id": int, "schedule_id": int, "date": str, "name": str}
@@ -174,7 +188,7 @@ async def build_and_push_workout(
         return watch_error()
     storage = ctx.lifespan_context["storage"]
 
-    dsl = _load_dsl_or_error(workout_json, name)
+    dsl = _load_dsl_or_error(workout_json, name, sport)
     if isinstance(dsl, dict):
         return dsl
     if parse_iso_date(target_date) is None:
