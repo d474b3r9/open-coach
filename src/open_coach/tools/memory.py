@@ -21,6 +21,7 @@ from open_coach.tools._common import (
     get_watch,
     invalid_date_error,
     parse_iso_date,
+    plan_update_next_steps,
     profile_language,
     save_active_plan,
     training_load_as_of,
@@ -87,8 +88,7 @@ async def _training_load_block(ctx: Context, storage: CoachStorage, today: date)
     return {"status": "unavailable"}
 
 
-@mcp.resource("coach://context")
-async def get_coaching_context(ctx: Context) -> str:
+async def _coaching_context(ctx: Context) -> dict:
     """Consolidated coaching context: profile + fitness + goals + constraints + feedback.
 
     ``training_load`` is computed live from the watch history (rest days
@@ -145,7 +145,30 @@ async def get_coaching_context(ctx: Context) -> str:
         "recent_feedback": [e.model_dump(mode="json") for e in feedback_log.entries[-10:]],
         "active_plan": active_plan_info,
     }
-    return json.dumps(context, default=str, indent=2)
+    return context
+
+
+@mcp.resource("coach://context")
+async def get_coaching_context(ctx: Context) -> str:
+    """Consolidated coaching context: profile + fitness + goals + constraints + feedback."""
+    return json.dumps(await _coaching_context(ctx), default=str, indent=2)
+
+
+@mcp.tool(name="get_coaching_context", annotations={"readOnlyHint": True})
+async def coaching_context_tool(ctx: Context | None = None) -> dict:
+    """Read the coaching context — call this FIRST in every coaching conversation.
+
+    Returns today's date and weekday, the athlete profile (VDOT, zones, language,
+    training pattern), live training load (CTL/ATL/TSB), goals, constraints
+    (available days, injuries), the last 10 feedback entries and a summary of
+    the active plan (current week, days remaining). Same data as the
+    ``coach://context`` resource, exposed as a tool for MCP clients that do not
+    read resources.
+
+    Side effect: an active plan expired for more than 3 days is auto-archived.
+    """
+    assert ctx is not None
+    return await _coaching_context(ctx)
 
 
 @mcp.resource("coach://profile")
@@ -185,21 +208,44 @@ def get_recent_feedback(ctx: Context) -> str:
     return json.dumps([e.model_dump(mode="json") for e in recent], default=str, indent=2)
 
 
-@mcp.resource("coach://plan/active")
-def get_active_plan(ctx: Context) -> str:
-    """Active training plan with current date context."""
-    storage = ctx.lifespan_context["storage"]
+def _active_plan_payload(storage: CoachStorage) -> dict:
+    """Active plan as JSON-ready dict, with today / current week / days remaining."""
+    today = date.today()
     plan = storage.load_active_plan()
     if plan is None:
-        return json.dumps({"status": "no_active_plan", "today": date.today().isoformat()})
-    today = date.today()
-    data = json.loads(plan.model_dump_json())
+        return {"status": "no_active_plan", "today": today.isoformat()}
+    data: dict = json.loads(plan.model_dump_json())
     data["today"] = today.isoformat()
     data["day_of_week"] = today.strftime("%A")
     weeks_elapsed = (today - plan.start_date).days // 7 + 1
     data["current_week"] = max(1, min(weeks_elapsed, len(plan.weeks)))
     data["days_remaining"] = max(0, (plan.end_date - today).days)
-    return json.dumps(data, default=str, indent=2)
+    return data
+
+
+def _archived_plan_payload(storage: CoachStorage, name: str) -> dict:
+    plan = storage.load_archived_plan(name)
+    if plan is None:
+        return {"error": f"No archived plan {name!r}", "available": storage.list_archived_plans()}
+    return plan.model_dump(mode="json")
+
+
+@mcp.resource("coach://plan/active")
+def get_active_plan(ctx: Context) -> str:
+    """Active training plan with current date context."""
+    return json.dumps(_active_plan_payload(ctx.lifespan_context["storage"]), default=str, indent=2)
+
+
+@mcp.tool(name="get_active_plan", annotations={"readOnlyHint": True})
+async def active_plan_tool(ctx: Context | None = None) -> dict:
+    """Read the full active training plan (every week and session).
+
+    Adds ``today``, ``day_of_week``, ``current_week`` and ``days_remaining``.
+    Same data as the ``coach://plan/active`` resource. Returns
+    ``{"status": "no_active_plan"}`` when there is none.
+    """
+    assert ctx is not None
+    return _active_plan_payload(ctx.lifespan_context["storage"])
 
 
 @mcp.resource("coach://plans/archive")
@@ -217,12 +263,25 @@ def get_archived_plan(name: str, ctx: Context) -> str:
     race result) when building a new plan.
     """
     storage: CoachStorage = ctx.lifespan_context["storage"]
-    plan = storage.load_archived_plan(name)
-    if plan is None:
-        return json.dumps(
-            {"error": f"No archived plan {name!r}", "available": storage.list_archived_plans()}
-        )
-    return plan.model_dump_json(indent=2)
+    return json.dumps(_archived_plan_payload(storage, name), default=str, indent=2)
+
+
+@mcp.tool(name="get_archived_plan", annotations={"readOnlyHint": True})
+async def archived_plan_tool(name: str | None = None, ctx: Context | None = None) -> dict:
+    """List archived plans, or read one to compare a previous training cycle.
+
+    Args:
+        name: Archived plan slug. Omit it to get the list of available slugs.
+
+    Returns:
+        {"archived_plans": [...]} without ``name``, else the full plan JSON
+        (volumes, outcome notes, race result) or {"error", "available"}.
+    """
+    assert ctx is not None
+    storage: CoachStorage = ctx.lifespan_context["storage"]
+    if not name:
+        return {"archived_plans": storage.list_archived_plans()}
+    return _archived_plan_payload(storage, name)
 
 
 # ── MCP Tools (write operations) ──
@@ -532,22 +591,34 @@ async def record_workout_feedback(
 
 
 @mcp.tool()
-async def save_training_plan(plan_json: str, ctx: Context | None = None) -> dict:
-    """Save a training plan as the active plan.
+async def save_training_plan(plan_json: TrainingPlan | str, ctx: Context | None = None) -> dict:
+    """Save a training plan as the active plan (replaces the current one).
+
+    Typical edit loop: get_active_plan → modify the weeks/sessions → pass the
+    whole plan back here. A differently named active plan is auto-archived.
 
     Args:
-        plan_json: JSON string of the training plan.
+        plan_json: The full training plan, as an object matching the schema
+            (preferred) or as a JSON string of that object.
+
+    Returns:
+        {"status": "plan_saved", "name", "weeks", "next_steps": [...]} — follow
+        ``next_steps`` (watch sync, journal) right away.
     """
     assert ctx is not None
     storage = ctx.lifespan_context["storage"]
-    try:
-        plan = TrainingPlan.model_validate_json(plan_json)
-    except ValidationError as exc:
-        return {"error": f"Invalid plan_json: {exc.error_count()} validation error(s): {exc}"}
+    if isinstance(plan_json, TrainingPlan):
+        plan = plan_json
+    else:
+        try:
+            plan = TrainingPlan.model_validate_json(plan_json)
+        except ValidationError as exc:
+            return {"error": f"Invalid plan_json: {exc.error_count()} validation error(s): {exc}"}
     archived_name = save_active_plan(storage, plan)
     result: dict = {"status": "plan_saved", "name": plan.name, "weeks": len(plan.weeks)}
     if archived_name:
         result["auto_archived"] = archived_name
+    result["next_steps"] = plan_update_next_steps(watch_sync=True)
     # Keep the markdown copy in sync — same contract as generate_training_plan
     # and update_workout_completion: JSON is the source of truth, md failure is soft.
     try:

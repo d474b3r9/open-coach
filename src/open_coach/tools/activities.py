@@ -8,7 +8,12 @@ from datetime import date, timedelta
 from fastmcp import Context
 
 from open_coach.server import mcp
-from open_coach.tools._common import avg_pace_sec_per_km, get_watch, watch_error
+from open_coach.tools._common import (
+    avg_pace_sec_per_km,
+    compact_payload,
+    get_watch,
+    watch_error,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -50,11 +55,15 @@ async def get_recent_runs(days: int = 30, limit: int = 20, ctx: Context | None =
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
-async def get_activity_details(activity_id: int, ctx: Context | None = None) -> dict:
+async def get_activity_details(
+    activity_id: int, compact: bool = True, ctx: Context | None = None
+) -> dict:
     """Get detailed metrics for a specific activity including splits, HR zones, and laps.
 
     Args:
         activity_id: The activity ID on the watch platform.
+        compact: Drop empty fields and round floats (default True). Set False
+            only to see the untouched vendor payload.
     """
     assert ctx is not None
     watch = get_watch(ctx)
@@ -63,8 +72,9 @@ async def get_activity_details(activity_id: int, ctx: Context | None = None) -> 
 
     detail = await watch.activity_detail(activity_id)
 
-    return {
+    result = {
         "activity_id": activity_id,
         "summary": detail.summary,
         "splits": detail.splits,
     }
+    return compact_payload(result) if compact else result

@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 
 from fastmcp import FastMCP
 
+from open_coach.instructions import SERVER_INSTRUCTIONS
 from open_coach.storage import CoachStorage
 
 logger = logging.getLogger(__name__)
@@ -42,18 +43,14 @@ async def coach_lifespan(_server: FastMCP) -> AsyncIterator[dict]:
 
 mcp = FastMCP(
     "Open Coach",
-    instructions=(
-        "An AI coach that uses the athlete's watch data to analyze workouts, "
-        "calculate VDOT and training zones, monitor training load, and manage "
-        "structured training plans. "
-        "The user may speak French or English — always reply in the same language they use."
-    ),
+    instructions=SERVER_INSTRUCTIONS,
     lifespan=coach_lifespan,
 )
 
 # Import tool/resource modules to register them with the mcp instance
 from open_coach.tools import (  # noqa: E402, F401
     activities,
+    guides,
     health,
     memory,
     plans,

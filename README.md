@@ -2,12 +2,12 @@
 
 ![License](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)
 ![Python](https://img.shields.io/badge/python-3.12+-blue.svg)
-![Claude Code](https://img.shields.io/badge/Claude_Code-MCP_server_%2B_skills-orange.svg)
+![MCP](https://img.shields.io/badge/MCP-any_client-orange.svg)
 ![Status](https://img.shields.io/badge/status-beta-yellow.svg)
 
 > **Free and community-driven.** Open Coach is an open-source AI coach for athletes, built in the open. Contributions are welcome — coaching methodology, new watch platforms, translations, code: see [CONTRIBUTING.md](CONTRIBUTING.md).
 
-Turn your watch into an AI-coached training stack. **Open Coach** (formerly `garmin_running_coach`) is a **Claude Code project** (an **MCP server** plus coaching skills, opened as a workspace) that pulls your activities and health metrics from your watch platform (Garmin Connect today, through a pluggable provider layer) or Strava, calculates **Daniels-Gilbert VDOT** zones, monitors training load (**CTL/ATL/TSB**), generates periodized plans (**Base / Build / Peak / Taper**), and pushes structured workouts back to your watch. Coaching rules live in a methodology skill that Claude consults *before* any recommendation — so the AI never invents anti-patterns like back-to-back hard days or M-pace strict in week 1.
+Turn your watch into an AI-coached training stack. **Open Coach** (formerly `garmin_running_coach`) is an **MCP server** plus coaching guides that works with any MCP client — Claude Code, Claude Desktop, Cursor, Codex, Gemini CLI, VS Code… — and pulls your activities and health metrics from your watch platform (Garmin Connect today, through a pluggable provider layer) or Strava, calculates **Daniels-Gilbert VDOT** zones, monitors training load (**CTL/ATL/TSB**), generates periodized plans (**Base / Build / Peak / Taper**), and pushes structured workouts back to your watch. Coaching rules live in a methodology guide that the AI consults *before* any recommendation — so it never invents anti-patterns like back-to-back hard days or M-pace strict in week 1.
 
 <!-- TODO: add a screen capture at docs/assets/demo.gif once recorded -->
 
@@ -15,9 +15,10 @@ Turn your watch into an AI-coached training stack. **Open Coach** (formerly `gar
 
 ```mermaid
 flowchart LR
-    User[You] -->|"ask Claude"| Claude[Claude Code]
-    Claude -->|skill: rules| Entraineur[entraineur<br/>methodology rules]
-    Claude -->|MCP tools| Server[FastMCP server]
+    User[You] -->|"ask"| Client[Any MCP client<br/>Claude Code, Cursor, Codex, Gemini CLI…]
+    Client -->|get_coaching_guide / skill| Entraineur[entraineur<br/>methodology rules]
+    Client -->|MCP tools + prompts| Server[FastMCP server]
+    Server -->|serves| Entraineur
     Server <-->|OAuth2| Garmin[Garmin Connect]
     Server <-->|OAuth2| Strava[Strava API]
     Server --> Storage[(~/.open-coach/<br/>JSON state)]
@@ -26,8 +27,8 @@ flowchart LR
 ```
 
 Two layers of intelligence:
-- **`entraineur` skill** — coaching methodology (Daniels VDOT, 80/20, periodization, recovery, anti-patterns, DSL workout conventions). Pure rules, no I/O. Read by Claude before every coaching decision.
-- **MCP server** — data plane. Pure-computation modules (`vdot.py`, `training_load.py`, `zones.py`, `plan_generator.py`, `race_predictor.py`, `recovery_monitor.py`) sit behind FastMCP tools that Claude calls.
+- **`entraineur` skill** — coaching methodology (Daniels VDOT, 80/20, periodization, recovery, anti-patterns, DSL workout conventions). Pure rules, no I/O. Read by the AI before every coaching decision — natively as a skill in Claude Code, through the `get_coaching_guide` tool / MCP prompts everywhere else.
+- **MCP server** — data plane. Pure-computation modules (`vdot.py`, `training_load.py`, `zones.py`, `plan_generator.py`, `race_predictor.py`, `recovery_monitor.py`) sit behind FastMCP tools that the AI calls. The server also sends its operating rules (read the context first, watch-sync policy, activity-analysis rules) as MCP instructions, so every client follows them.
 
 ## Requirements
 
@@ -63,7 +64,7 @@ Re-running the script is safe (idempotent — it skips files that already exist)
 
 The coach works in English or French.
 
-- **Conversation**: Claude replies in the language you write in — no setting needed.
+- **Conversation**: the coach replies in the language you write in — no setting needed.
 - **Generated text** (plan markdown in `plans/`, session descriptions, plan names): set your preference once with the MCP tool `update_athlete_profile(language="en")` or `update_athlete_profile(language="fr")` — ask Claude *"set my language to French"*. Default is English.
 - **Athlete templates**: `uv run python scripts/setup_local.py --lang fr` copies the French profile and journal templates; the default is English. File names are the same either way (`plans/athlete-profile.md`, `plans/training-journal.md`).
 - **Plan descriptions** are parsed in both languages (`10 km incl. 15 min @ M` or `10 km dont 15 min @ M`).
@@ -169,26 +170,31 @@ Full setup, scheduling examples (systemd timer / Task Scheduler), and conflict/b
 
 ## Run the MCP server
 
-**Normal usage:** nothing to launch by hand. Open this repo in Claude Code — it reads the `.mcp.json` shipped in the repo and starts the `open-coach` server automatically. On first open, Claude Code asks you to approve the project-scoped `open-coach` server from `.mcp.json`; accept, then check with `/mcp` (should show `connected`).
+**Normal usage:** nothing to launch by hand. Open this repo in your MCP client and it starts the `open-coach` server from the project config shipped in the repo:
+
+- **Claude Code** — `.mcp.json`. Approve the project-scoped server when prompted, then check with `/mcp` (should show `connected`).
+- **Cursor** — `.cursor/mcp.json` (enable it in Settings → MCP).
+- **Gemini CLI** — `.gemini/settings.json` (start `gemini` from the repo root).
+- **Codex, VS Code, Claude Desktop, others** — one snippet each in [`docs/mcp-clients.md`](docs/mcp-clients.md). The server command is always `uv run --directory <repo> open-coach` (stdio).
 
 **Standalone / debug only:**
 
 ```bash
-uv run python -m open_coach.server
+uv run open-coach
 ```
 
 ## Quick start (after setup)
 
-Open Claude Code in this repo and try:
+Open your MCP client in this repo and try:
 
 - **"Analyze my last 5 runs"** — fetches recent runs, reports HR / pace / drift / anomalies
 - **"Should I train hard today?"** — checks HRV, sleep, training load (CTL/ATL/TSB), returns adaptive recommendation
 - **"Build me a plan for a half marathon on October 15"** — builds periodized plan (Base/Build/Peak/Taper), writes a markdown rendering to `plans/`, optionally pushes workouts to Garmin
 - **"Push Tuesday's session to my watch"** — assembles a structured workout via the DSL, uploads + schedules it on Garmin Connect
 
-Prompts work just as well in French (*"Analyse mes 5 dernières séances"*) — Claude answers in the language you use.
+Prompts work just as well in French (*"Analyse mes 5 dernières séances"*) — the coach answers in the language you use.
 
-All workflows live in [`skills/`](skills/) (one per use case: `onboard`, `plan-training`, `push-workout`, `analyze-run`, `daily-check`, `race-ready`). Methodology rules in [`.claude/skills/entraineur/`](.claude/skills/entraineur/).
+All workflows live in [`.claude/skills/`](.claude/skills/) (one per use case: `onboard`, `plan-training`, `push-workout`, `analyze-run`, `daily-check`, `race-ready`), next to the methodology rules in [`.claude/skills/entraineur/`](.claude/skills/entraineur/). Claude Code loads them as skills; other clients get them as MCP prompts of the same name (e.g. `/plan-training`) or through the `get_coaching_guide` tool.
 
 For an in-depth walkthrough (architecture rationale, extension guide, FAQ), see [`docs/getting-started.md`](docs/getting-started.md).
 
@@ -240,7 +246,7 @@ State persists in `~/.open-coach/` (profile, goals, plans, feedback, registries,
 ## Privacy & data
 
 - **All data stays local.** Garmin/Strava OAuth tokens cached at `~/.garth/` and `~/.open-coach/strava_tokens.json`. Training state (profile, goals, plans, feedback) lives in `~/.open-coach/` as plain JSON.
-- **No telemetry, no third-party servers.** The MCP server speaks directly to Garmin/Strava on your behalf. Claude only sees what tool calls return.
+- **No telemetry, no third-party servers.** The MCP server speaks directly to Garmin/Strava on your behalf. The model only sees what tool calls return.
 - **Athlete profile is gitignored.** Cloning the repo does NOT inherit any prior user's training plan or race calendar. Run `scripts/setup_local.py` to bootstrap your own from `plans/.templates/`.
 - **No secrets in the repo.** Credentials come from env vars (`GARMIN_EMAIL`, `STRAVA_CLIENT_ID`, …). `.mcp.json` uses `${VAR:-}` interpolation, so an unset variable is passed as empty and the server starts offline.
 - **Optional Google Drive sync** is opt-in, runs out of band via `rclone`, and never touches the MCP server. See [`docs/drive-sync.md`](docs/drive-sync.md).

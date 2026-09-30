@@ -33,8 +33,8 @@ Open Coach is licensed under the **AGPL-3.0**: it stays free for everyone, and a
 ### Where things go
 
 - Coaching rules → `.claude/skills/entraineur/` (generic methodology, never one athlete's data)
-- MCP tools → `src/open_coach/tools/` (see `CLAUDE.md` § "Adding a new MCP tool or resource")
-- A new watch platform → `src/open_coach/providers/` (see `CLAUDE.md` § "Watch providers"; `tests/test_provider_contract.py` is the contract to pass)
+- MCP tools → `src/open_coach/tools/` (see `AGENTS.md` § "Adding a new MCP tool or resource")
+- A new watch platform → `src/open_coach/providers/` (see `AGENTS.md` § "Watch providers"; `tests/test_provider_contract.py` is the contract to pass)
 - Text the code shows to athletes → `src/open_coach/i18n.py`, in English and French
 
 ## Data separation policy
@@ -101,7 +101,7 @@ uv run python scripts/setup_local.py   # copy templates into plans/ and .claude/
 
 ### Adding a new MCP tool
 
-See `CLAUDE.md` § "Adding a new MCP tool or resource" — concise 5-step recipe (module under `src/open_coach/tools/`, `@mcp.tool()` decorator, `ctx.lifespan_context` for shared state, import in `server.py`, separate pure-logic from I/O wrapper).
+See `AGENTS.md` § "Adding a new MCP tool or resource" — concise 5-step recipe (module under `src/open_coach/tools/`, `@mcp.tool()` decorator, `ctx.lifespan_context` for shared state, import in `server.py`, separate pure-logic from I/O wrapper).
 
 ### Adding a coaching rule
 
@@ -109,7 +109,7 @@ Methodology rules live in `.claude/skills/entraineur/`. Add the rule to `SKILL.m
 
 ### Adding a workflow skill
 
-Workflow skills live in `skills/<name>/SKILL.md`. They reference the `entraineur` skill for rules and call MCP tools to perform the work. Trigger phrases (`description:` frontmatter) should be non-overlapping with `entraineur` and with each other.
+Workflow skills live in `.claude/skills/<name>/SKILL.md`; add the name to `WORKFLOWS` and `GuideName` in `src/open_coach/guides.py` so it is also served as an MCP prompt (`tests/test_llm_portability.py` fails otherwise). They reference the `entraineur` skill for rules and call MCP tools to perform the work. Trigger phrases (`description:` frontmatter) should be non-overlapping with `entraineur` and with each other. Keep them client-neutral: call tools (`get_coaching_context`, `get_coaching_guide("…")`) rather than reading a `coach://` resource only, and never rely on a Claude-only feature — the same text is served to every MCP client.
 
 ## Commit style
 

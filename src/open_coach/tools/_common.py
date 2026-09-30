@@ -12,6 +12,7 @@ import logging
 from datetime import date, datetime
 from typing import TYPE_CHECKING, Any, NamedTuple
 
+from open_coach.paths import env
 from open_coach.plan_renderer import delete_plan_markdown
 from open_coach.training_load import calculate_load_series, daily_tss_from_runs
 
@@ -87,6 +88,58 @@ def save_active_plan(storage: CoachStorage, plan: TrainingPlan) -> str | None:
         except OSError as exc:
             logger.warning("Failed to delete stale plan markdown: %s", exc)
     return archived_name
+
+
+def compact_payload(value: Any) -> Any:
+    """Shrink a raw vendor payload for the LLM without knowing its shape.
+
+    Recursively drops ``None`` / empty strings / empty containers and rounds
+    floats to 2 decimals. Vendor payloads are mostly null placeholders and
+    long float tails: this keeps every real value while cutting the token
+    cost, which matters for models with a small context window.
+    """
+    if isinstance(value, dict):
+        out = {k: compact_payload(v) for k, v in value.items()}
+        return {k: v for k, v in out.items() if v not in (None, "", [], {})}
+    if isinstance(value, list):
+        items = [compact_payload(v) for v in value]
+        return [v for v in items if v not in (None, "", [], {})]
+    if isinstance(value, float):
+        return round(value, 2)
+    return value
+
+
+WATCH_SYNC_STEP = (
+    "Sync the watch: call list_watch_workouts for every affected date (old and new), "
+    "unschedule_watch_workout (and delete_watch_workout if the coach created it) for any "
+    "moved or conflicting session, then push with sync_upcoming_workouts or "
+    "build_and_push_workout. Push only sessions carrying quality or a pace block "
+    "(interval, tempo, race, long run with an embedded @ M block) — never a plain easy run, "
+    "rest or strength session. Report what was unscheduled, pushed and left unpushed."
+)
+
+
+def plan_update_next_steps(*, watch_sync: bool, confirm_first: bool = False) -> list[str]:
+    """Follow-up steps returned by plan-changing tools.
+
+    These rules used to live only in agent instruction files (CLAUDE.md), which
+    most MCP clients never read. Carrying them in the tool result makes every
+    client see them at the moment they apply.
+    """
+    steps: list[str] = []
+    if watch_sync:
+        prefix = "Once the athlete confirms the plan: " if confirm_first else ""
+        steps.append(prefix + WATCH_SYNC_STEP)
+    steps.append(
+        "If you can edit files: append the reason for this change to "
+        "plans/training-journal.md (append-only, dated entry)."
+    )
+    if env("DRIVE_FOLDER_ID"):
+        steps.append(
+            "If you can run shell commands: run `bash scripts/drive_sync.sh --all` to refresh "
+            "the Drive / Obsidian copies, and report the rclone outcome in one line."
+        )
+    return steps
 
 
 DEFAULT_THRESHOLD_HR = 170  # used when the profile has no threshold HR

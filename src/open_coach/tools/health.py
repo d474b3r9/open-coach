@@ -7,7 +7,7 @@ import logging
 from fastmcp import Context
 
 from open_coach.server import mcp
-from open_coach.tools._common import get_watch, resolve_target_date, watch_error
+from open_coach.tools._common import compact_payload, get_watch, resolve_target_date, watch_error
 
 logger = logging.getLogger(__name__)
 
@@ -39,11 +39,20 @@ async def get_health_snapshot(target_date: str = "today", ctx: Context | None = 
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
-async def get_training_status(ctx: Context | None = None) -> dict:
-    """Get the watch platform's training status, VO2max estimate, and recovery time."""
+async def get_training_status(compact: bool = True, ctx: Context | None = None) -> dict:
+    """Get the watch platform's training status, VO2max estimate, and recovery time.
+
+    Args:
+        compact: Drop empty fields and round floats (default True). Set False
+            only to see the untouched vendor payload.
+    """
     assert ctx is not None
     watch = get_watch(ctx)
     if watch is None:
         return watch_error()
 
-    return await watch.training_status()
+    status = await watch.training_status()
+    if not compact:
+        return status
+    # Top-level keys stay (None = that signal is unavailable); only their values shrink.
+    return {key: compact_payload(value) for key, value in status.items()}

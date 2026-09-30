@@ -18,6 +18,7 @@ Before reading any rule, check that the athlete profile exists:
 
 1. **If `plans/athlete-profile.md` AND `plans/training-journal.md` both exist** → read both (parallel multi-tool call), then apply the rules below **with** the values found in the profile.
 2. **If either is missing** → ask the user to run `uv run python scripts/setup_local.py` and then edit the profile with their values (VDOT, calendar, constraints…).
+3. **If you have no file access** (desktop / web chat client using only the MCP server) → skip the markdown files and work from `get_coaching_context`; the stored profile, goals, constraints and recent feedback carry the essentials.
 
 ## Reading cycle for a coaching answer
 
@@ -79,13 +80,13 @@ To perform a concrete action, use the appropriate workflow skill:
 - **Daily check-in** → `daily-check`
 - **Race preparation** → `race-ready`
 
-Each workflow reads its MCP context (`coach://context`) and applies this skill's rules.
+Each workflow reads its MCP context (`get_coaching_context`, same data as the `coach://context` resource) and applies this skill's rules. Clients without skills get the same workflows as MCP prompts, or through the `get_coaching_guide` tool.
 
 Behaviours encoded in the generator/predictor (do not re-derive by hand):
 - The `max_weekday_minutes` / `max_weekend_minutes` constraints **cap the duration of generated sessions** (easy / long run: distance reduced; tempo: threshold block reduced, floor 2 km; intervals: reps reduced, floor 3).
 - Active injuries and constraint `notes` are **surfaced in the response** of `generate_training_plan` (`warnings`, `constraints_notes`) — it is up to the coach to translate them into adaptations. Close a healed injury with `resolve_injury`.
 - Half / marathon predictions apply an **endurance penalty if CTL < 50** (capped at +6 %) — a fresh VDOT on a thin aerobic base no longer promises an unrealistic marathon time.
-- An archived plan can be re-read via `coach://plans/archive/{slug}` to compare cycles.
+- An archived plan can be re-read via `coach://plans/archive/{slug}` (or the `get_archived_plan` tool) to compare cycles.
 
 ## Garmin SSO — operational note
 

@@ -73,6 +73,13 @@ class TestLoadDsl:
         assert dsl.name == "10x1min @ threshold"
         assert dsl.estimated_duration_s > 0
 
+    def test_object_input(self):
+        """Typed input: a schema-following client sends the DSLWorkout as an object."""
+        from open_coach.workout_dsl import DSLWorkout
+
+        dsl = DSLWorkout.model_validate_json(_WORKOUT_JSON)
+        assert _load_dsl(dsl) is dsl
+
     def test_text_input_without_name_raises(self):
         with pytest.raises(ValueError, match="name is required"):
             _load_dsl(_TEXT_DSL)

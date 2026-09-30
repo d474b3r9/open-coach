@@ -6,12 +6,12 @@ description: Daily recovery check-in to decide if today's session proceeds, is m
 
 # daily-check
 
-MCP workflow for the daily recovery check-in + recommendation. For the overload thresholds and the downgrade logic, see the `entraineur` skill → `references/methodology.md` § "Post-race recovery" and § "Safeguards".
+MCP workflow for the daily recovery check-in + recommendation. For the overload thresholds and the downgrade logic, see the `entraineur` methodology → `get_coaching_guide("methodology")` § "Post-race recovery" and § "Safeguards".
 
 ## Steps
 
 ### 1. Context
-Read `coach://context` for profile, active plan, today's date.
+Call `get_coaching_context` (same data as the `coach://context` resource) for profile, active plan, today's date.
 
 ### 2. Recovery status
 `get_recovery_status()`

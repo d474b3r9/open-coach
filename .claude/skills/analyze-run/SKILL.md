@@ -6,11 +6,11 @@ description: Debrief a completed run (pace, HR, splits, training effect, cardiac
 
 # analyze-run
 
-MCP workflow to analyse a completed run. For the interpretation rules (zones, drift, VDOT recalibration), see the `entraineur` skill → `references/methodology.md`.
+MCP workflow to analyse a completed run. For the interpretation rules (zones, drift, VDOT recalibration), see the `entraineur` methodology → `get_coaching_guide("methodology")`.
 
 ## Steps
 
-1. Read `coach://context` for the athlete's profile, goals, current fitness
+1. Call `get_coaching_context` (same data as the `coach://context` resource) for the athlete's profile, goals, current fitness
 2. `get_recent_runs` → find the relevant activity
 3. `get_activity_details` → full metrics (splits, HR, pace)
 4. Compare with training zones from the profile:

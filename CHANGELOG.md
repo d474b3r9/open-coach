@@ -8,10 +8,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 English-speaking runners can now use the project end to end; French stays
-fully supported.
+fully supported. The coach also runs from any MCP client (Cursor, Codex,
+Gemini CLI, VS Code, Claude Desktop…), not only Claude Code.
 
 ### Added
 
+- Any MCP client can run the coach: the operating rules (read the context
+  first, methodology, watch sync, activity analysis, safety) are sent as MCP
+  server instructions (`instructions.py`).
+- Workflow guides exposed as MCP prompts (`onboard`, `plan-training`,
+  `push-workout`, `analyze-run`, `daily-check`, `race-ready`), and every guide
+  (methodology included) through the `get_coaching_guide` tool and the
+  `coach://guide/{name}` resource. The wheel bundles the guides.
+- Read-only tools mirroring the resources, for clients that ignore MCP
+  resources: `get_coaching_context`, `get_active_plan`, `get_archived_plan`.
+- `next_steps` in the results of `generate_training_plan`,
+  `save_training_plan` and `update_workout_completion` (watch sync, training
+  journal, Drive sync when configured).
+- `compact` parameter (default `True`) on `get_activity_details`,
+  `get_training_status` and `list_watch_workouts`: drops empty fields and
+  rounds floats in raw watch payloads.
+- `open-coach` console script; project MCP configs for Cursor
+  (`.cursor/mcp.json`) and Gemini CLI (`.gemini/settings.json`);
+  `docs/mcp-clients.md` with setup for Codex, VS Code, Claude Desktop and others.
+- `AGENTS.md`: agent-neutral repository guide (read by Codex, Cursor, Copilot,
+  Gemini CLI); `CLAUDE.md` now imports it and keeps Claude Code specifics only.
 - Language preference: `AthleteProfile.language` (`"en"` default, `"fr"`),
   set with `update_athlete_profile(language=...)`.
 - Generated text (plan markdown, session descriptions, plan names) is
@@ -27,6 +48,14 @@ fully supported.
 
 ### Changed
 
+- `save_training_plan` accepts the plan as an object (full JSON schema
+  published) or as a JSON string; `upload_workout` / `build_and_push_workout`
+  accept a `DSLWorkout` object as well as JSON / text DSL.
+- Workflow skills moved from `skills/` to `.claude/skills/`: Claude Code never
+  loaded them from `skills/`. They now name tools (`get_coaching_context`,
+  `get_coaching_guide`) instead of bare `coach://` reads.
+- `get_activity_details`, `get_training_status`, `list_watch_workouts` return
+  compacted payloads by default (`compact=False` restores the raw payload).
 - **Licence**: Open Coach is now free software under the **AGPL-3.0**
   (was PolyForm Noncommercial 1.0.0), dual-licensed with optional commercial
   terms from the maintainer. Contributors accept a CLA (`CLA.md`) once, via
