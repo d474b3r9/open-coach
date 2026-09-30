@@ -96,6 +96,30 @@ Any front end that speaks MCP over stdio works with the command above. Pick a mo
 
 Ask the model: *"What is today's date according to the coach?"* It should call `get_coaching_context` (or read `coach://context`). If it answers without a tool call, the server is not connected: run `uv run open-coach` in a terminal to see startup errors, and `uv run python scripts/smoke_mcp.py` for an end-to-end check.
 
+## Skills: standards followed and known limits
+
+The coaching guides are **Agent Skills** and the server exposes them following the skills-over-MCP patterns of 2026:
+
+| Standard | What it covers here |
+|---|---|
+| [Agent Skills specification](https://agentskills.io/specification) (open standard, adopted by Codex, Gemini CLI, Copilot, Cursor, Claude Code and others) | `SKILL.md` frontmatter (`name`, `description`, `compatibility`, `metadata`), body under 500 lines, references one level deep. Checked by `tests/test_skills_spec.py`. |
+| [`.agents/skills/` convention](https://agentskills.io/client-implementation/adding-skills-support) | Cross-client location of the skills; `.claude/skills` is a symlink to it for Claude Code. |
+| [MCP Skills extension (SEP-2640)](https://modelcontextprotocol.io/extensions/skills/overview) | Skills served as `skill://<name>/SKILL.md` resources (plus `_manifest` and supporting files), through FastMCP's `SkillProvider`. |
+| Catalog in an always-loaded tool description ([skills-mcp](https://github.com/StacklokLabs/skills-mcp)) and in the system prompt ([Agent Skills client guide](https://agentskills.io/client-implementation/adding-skills-support)) | The guide catalog (name + what/when) sits in the `get_coaching_guide` description and in the server instructions. |
+| [Anthropic skill authoring best practices](https://platform.claude.com/docs/en/agents-and-tools/agent-skills/best-practices) | Third-person descriptions with trigger phrases, `## Contents` on long references, copyable checklists, client-neutral wording. |
+
+Known limits:
+
+- **Windows and the `.claude/skills` symlink.** Git checks symlinks out as plain text files unless `core.symlinks` is enabled, and creating them needs Developer Mode (or an elevated shell). Without it, Claude Code sees no skills; the other clients are unaffected (they read `.agents/skills/` or go through the MCP server). Fix before cloning, or re-checkout after enabling it:
+
+  ```powershell
+  git config --global core.symlinks true   # with Windows Developer Mode on
+  git clone https://github.com/d474b3r9/open-coach.git
+  ```
+
+- **`skills/list` and `skills/get` are not implemented.** SEP-2640 also defines these JSON-RPC methods (discovery with file digests). FastMCP does not provide them yet and very few clients call them ([client matrix](https://modelcontextprotocol.io/extensions/client-matrix)); the `skill://` resources, prompts and `get_coaching_guide` cover the same need meanwhile. To be added once FastMCP supports them.
+- **Loading a guide is never guaranteed.** No client forces a model to load a skill: the model decides from the catalog. The catalog in the instructions and in the tool description makes it much more likely, but a weaker model can still skip it. When it matters, start with the workflow prompt (`/plan-training`…) or ask for `get_coaching_guide` explicitly — and when changing a skill, try it on a few representative requests with the models you actually use, as the best practices recommend.
+
 ## Tips for smaller models
 
 - Start the conversation with the matching prompt (`/plan-training`, `/daily-check`…) when the client supports prompts; otherwise ask the model to call `get_coaching_guide` with the workflow name.
