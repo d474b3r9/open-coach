@@ -5,13 +5,12 @@ from datetime import date
 import pytest
 
 from open_coach.models import ActivitySummary
-from open_coach.zones import (
-    estimate_max_hr,
-    estimate_resting_hr,
+from open_coach.sports.running.zones import (
     hr_zones_karvonen,
     merge_zones,
     pace_zones_from_vdot,
 )
+from open_coach.zones import estimate_max_hr, estimate_resting_hr
 
 
 class TestPaceZonesFromVdot:

@@ -20,22 +20,32 @@ import yaml
 
 # Methodology topics → file path relative to the skills directory. The
 # reference files have no frontmatter, so their catalog description lives here.
+# `rules` + `principles` are universal; each sport adds `rules-<sport>` and its
+# `<sport>-…` references (skill `coaching-rules-<sport>`).
 METHODOLOGY_TOPICS: dict[str, str] = {
     "rules": "coaching-rules/SKILL.md",
-    "methodology": "coaching-rules/references/methodology.md",
-    "dsl-conventions": "coaching-rules/references/dsl-conventions.md",
-    "anti-patterns": "coaching-rules/references/anti-patterns.md",
+    "principles": "coaching-rules/references/principles.md",
+    "rules-running": "coaching-rules-running/SKILL.md",
+    "running-methodology": "coaching-rules-running/references/methodology.md",
+    "running-dsl-conventions": "coaching-rules-running/references/dsl-conventions.md",
+    "running-anti-patterns": "coaching-rules-running/references/anti-patterns.md",
 }
 _TOPIC_DESCRIPTIONS: dict[str, str] = {
-    "methodology": (
-        "Universal principles: Daniels VDOT, 80/20, CTL progression, recovery weeks, "
-        "plan structure, test placement, post-race recovery, safeguards."
+    "principles": (
+        "Universal principles for every sport: 80/20 intensity split, CTL progression "
+        "+5/week max, recovery week every 4."
     ),
-    "dsl-conventions": (
-        "Strict rules for building a watch workout (DSL): easy run as one block, "
+    "running-methodology": (
+        "Running: Daniels VDOT, plan structure, test placement, 10K test in a marathon "
+        "block, post-race recovery, safeguards."
+    ),
+    "running-dsl-conventions": (
+        "Running: strict rules for building a watch workout (DSL): easy run as one block, "
         "lap-button warmup and cooldown, pace window of target ±5 s, naming."
     ),
-    "anti-patterns": ("Patterns never to apply, strength and tendon protocols, race nutrition."),
+    "running-anti-patterns": (
+        "Running: patterns never to apply, strength and tendon protocols, race nutrition."
+    ),
 }
 
 # Workflow skills, exposed as MCP prompts of the same name.
@@ -50,13 +60,15 @@ WORKFLOWS: tuple[str, ...] = (
 
 # Skills served as ``skill://<name>/…`` resources (SEP-2640). extract-transcript
 # is left out: it needs a shell and only makes sense inside the repository.
-SERVED_SKILLS: tuple[str, ...] = ("coaching-rules", *WORKFLOWS)
+SERVED_SKILLS: tuple[str, ...] = ("coaching-rules", "coaching-rules-running", *WORKFLOWS)
 
 GuideName = Literal[
     "rules",
-    "methodology",
-    "dsl-conventions",
-    "anti-patterns",
+    "principles",
+    "rules-running",
+    "running-methodology",
+    "running-dsl-conventions",
+    "running-anti-patterns",
     "onboard",
     "plan-training",
     "push-workout",

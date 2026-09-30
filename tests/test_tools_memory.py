@@ -37,7 +37,7 @@ class TestBootstrapAthleteProfile:
         ctx = mock_ctx(storage=storage, garmin=garmin)
         result = await bootstrap_athlete_profile(ctx=ctx)
         assert result["status"] == "already_complete"
-        assert result["vdot"] == 50.0
+        assert result["sports"]["running"]["fitness"]["value"] == 50.0
         assert garmin.calls == []  # no network activity
 
     async def test_happy_path_builds_profile(self, storage):
@@ -77,8 +77,10 @@ class TestBootstrapAthleteProfile:
 
         assert result["status"] == "complete"
         assert result["activities_scanned"] == 2  # the run + the strength session
-        assert result["vdot"] is not None
-        assert 30 < result["vdot"] < 45  # a 25:00 5K sits around VDOT 38
+        fitness = result["sports"]["running"]["fitness"]
+        assert fitness is not None
+        assert fitness["metric"] == "vdot"
+        assert 30 < fitness["value"] < 45  # a 25:00 5K sits around VDOT 38
         assert result["resting_hr"] == 47
 
         profile = storage.load_profile()

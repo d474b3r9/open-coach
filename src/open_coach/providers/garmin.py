@@ -21,7 +21,7 @@ from open_coach.providers.base import (
     WatchWorkout,
 )
 from open_coach.sports.base import OTHER_SPORT, ActivitySport, SportKey
-from open_coach.vdot import HALF_MARATHON_M, MARATHON_M
+from open_coach.sports.running.vdot import HALF_MARATHON_M, MARATHON_M
 
 if TYPE_CHECKING:
     from garminconnect import Garmin
@@ -181,14 +181,14 @@ class GarminProvider:
             splits=splits,
         )
 
-    async def personal_records(self) -> list[PersonalRecord]:
-        """Garmin's own PRs; empty list on any API error (callers merge with detected PRs)."""
+    async def personal_records(self) -> dict[SportKey, list[PersonalRecord]]:
+        """Garmin's own running PRs; empty on any API error (callers merge with detected PRs)."""
         try:
             raw = await asyncio.to_thread(self.client.get_personal_record)
         except Exception as err:
             logger.debug("Garmin personal records fetch failed: %s", err)
-            return []
-        return parse_garmin_personal_records(raw)
+            return {}
+        return {"running": parse_garmin_personal_records(raw)}
 
     # ── health ──
 

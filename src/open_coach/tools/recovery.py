@@ -142,7 +142,8 @@ async def get_adaptive_recommendation(
                 break
 
     profile = storage.load_profile()
-    rec = recommend_adaptation(assessment, planned_workout, profile)
+    sport = plan.sport_of(planned_workout) if plan and planned_workout else None
+    rec = recommend_adaptation(assessment, planned_workout, profile, sport)
 
     result: dict[str, Any] = {
         "recovery": {

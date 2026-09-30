@@ -3,7 +3,7 @@
 PostToolUse hook — reminds to sync the coaching-rules skill when a coaching module changes.
 
 Fired after Edit/Write. If the edited file is a Python module implementing coaching
-logic (vdot, training_load, zones, plan_generator, race_predictor, etc.), emits a
+logic (training_load, periodization, zones, any sports/<key>/ plugin, etc.), emits a
 reminder to update `.agents/skills/coaching-rules/SKILL.md` if the coaching behaviour
 changes (new rule, revised calculation, adjusted pace range).
 
@@ -22,16 +22,15 @@ from pathlib import Path
 with contextlib.suppress(Exception):
     sys.stdout.reconfigure(encoding="utf-8")
 
+# Core coaching modules; sport plugins (sports/<key>/…) are matched by path.
 COACHING_MODULES = {
-    "vdot.py",
     "training_load.py",
+    "periodization.py",
     "zones.py",
     "workout_dsl.py",
     "garmin_workout.py",
-    "race_predictor.py",
     "recovery_monitor.py",
     "plan_renderer.py",
-    "plan_generator.py",
 }
 
 
@@ -61,8 +60,10 @@ def main() -> None:
         f"{fp.name}"
         "` (coaching logic) was just modified.\n\n"
         "If the **coaching behaviour changes** (new rule, revised pace, modified VDOT "
-        "calculation, different default parameter), then **update "
-        "`.agents/skills/coaching-rules/SKILL.md`** so the skill reflects the code.\n\n"
+        "calculation, different default parameter), then **update the rules guide** so it "
+        "reflects the code: `.agents/skills/coaching-rules/` for a universal rule, "
+        "`.agents/skills/coaching-rules-<sport>/` (e.g. `coaching-rules-running`) for a "
+        "sport-specific one.\n\n"
         "**Anti-duplication rule**: do NOT duplicate the code in the skill. The skill describes "
         'the **principles** ("rule X says Y"), the code implements them. If the code changes '
         "to fix a bug without changing the coaching behaviour, no need to touch the "

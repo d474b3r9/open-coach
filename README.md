@@ -28,7 +28,7 @@ flowchart LR
 
 Two layers of intelligence:
 - **`coaching-rules` skill** — coaching methodology (Daniels VDOT, 80/20, periodization, recovery, anti-patterns, DSL workout conventions). Pure rules, no I/O. Read by the AI before every coaching decision — natively as a skill in Claude Code, through the `get_coaching_guide` tool / MCP prompts everywhere else.
-- **MCP server** — data plane. Pure-computation modules (`vdot.py`, `training_load.py`, `zones.py`, `plan_generator.py`, `race_predictor.py`, `recovery_monitor.py`) sit behind FastMCP tools that the AI calls. The server also sends its operating rules (read the context first, watch-sync policy, activity-analysis rules) as MCP instructions, so every client follows them.
+- **MCP server** — data plane. Pure-computation modules sit behind FastMCP tools that the AI calls: a sport-agnostic core (`training_load.py`, `periodization.py`, `recovery_monitor.py`, …) and one plugin per sport under `sports/` (running today: VDOT, pace zones, plan generator, race predictor). The server also sends its operating rules (read the context first, watch-sync policy, activity-analysis rules) as MCP instructions, so every client follows them.
 
 ## Requirements
 
@@ -222,13 +222,14 @@ src/open_coach/
 ├── server.py            FastMCP entry point + lifespan (watch provider + Strava + storage)
 ├── strava_auth.py       Strava OAuth2 (token cache + auto-refresh)
 ├── strava_client.py     Thin Strava API client (urllib only)
-├── vdot.py              Daniels-Gilbert VDOT engine
-├── training_load.py     hrTSS + CTL/ATL/TSB
-├── zones.py             Pace + HR zones from VDOT
-├── workout_dsl.py       DSL + parser
-├── plan_generator.py    Periodized plan generator
-├── race_predictor.py    Predictions + pacing + readiness
-├── recovery_monitor.py  Recovery scoring + adaptation
+├── training_load.py     hrTSS + CTL/ATL/TSB (every sport)
+├── periodization.py     Week types, volume progression, day placement (every sport)
+├── zones.py             Karvonen HR ranges, resting / max HR estimation
+├── workout_dsl.py       DSL + parser (sport, pace / heart-rate targets)
+├── recovery_monitor.py  Recovery scoring + adaptation dispatch
+├── migrations.py        JSON schema upgrades on read
+├── sports/              Sport plugins: base.py (Sport protocol, neutral types), registry.py
+│   └── running/         VDOT, pace zones, plan generator, plan → DSL, race tools
 ├── paths.py             Data dir + env vars (legacy garmin_coach names still read)
 ├── providers/           Watch providers: base.py (WatchProvider protocol), garmin*.py
 │                        (Garmin client, OAuth2 token-cache-first, DSL → Garmin workout)

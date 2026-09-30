@@ -10,17 +10,18 @@ from open_coach.models import (
     AthleteProfile,
     GoalsConfig,
     InjuryRecord,
+    PlannedWorkout,
     TrainingConstraints,
     TrainingGoal,
 )
+from open_coach.sports.running.plan_to_dsl import convert_planned_workout
 from open_coach.tools.plans import (
     _next_monday,
-    _planned_workout_to_dsl,
     generate_training_plan,
     sync_upcoming_workouts,
     update_workout_completion,
 )
-from open_coach.workout_dsl import RepeatBlock
+from open_coach.workout_dsl import DSLWorkout, RepeatBlock
 from tests.conftest import StubGarmin, make_plan, make_planned_workout, mock_ctx, running_profile
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -28,6 +29,11 @@ from tests.conftest import StubGarmin, make_plan, make_planned_workout, mock_ctx
 # Canonical factory lives in conftest; this module's workouts default to
 # tomorrow with an easy pace so they land inside the sync window.
 _workout = partial(make_planned_workout, offset_days=1, pace=330.0)
+
+
+def _planned_workout_to_dsl(workout: PlannedWorkout) -> DSLWorkout | None:
+    """The DSL the running plugin builds from a plan session (None when refused)."""
+    return convert_planned_workout(workout).dsl
 
 
 def _plan_with_workouts(workouts):

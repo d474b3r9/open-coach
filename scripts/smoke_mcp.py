@@ -34,8 +34,8 @@ from _console import ensure_utf8_stdout
 SAMPLE_ARGS: dict[str, dict[str, Any]] = {
     "get_recent_activities": {"days": 14, "limit": 10},
     "get_training_load": {"days": 60},
-    "get_training_zones": {"vdot": 50.0},
-    "calculate_vdot_from_race": {"distance_meters": 10000, "time_seconds": 2400},
+    "get_training_zones": {"sport": "running", "fitness": 50.0},
+    "calculate_fitness_from_race": {"distance_meters": 10000, "time_seconds": 2400},
     "get_strava_activities": {"months": 1, "activity_type": "Run"},
     # get_activity_details needs a real id — resolved at runtime from get_recent_activities.
 }

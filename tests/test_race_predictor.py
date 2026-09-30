@@ -6,13 +6,13 @@ from datetime import date, timedelta
 
 import pytest
 
-from open_coach.race_predictor import (
+from open_coach.sports.running.race import (
     _confidence_band,
     assess_race_readiness,
     build_pacing_strategy,
     predict_race_times,
 )
-from open_coach.vdot import predict_time
+from open_coach.sports.running.vdot import predict_time
 from tests.conftest import make_goal, make_plan, make_profile
 
 # ── TestPredictRaceTimes ─────────────────────────────────────────────────────

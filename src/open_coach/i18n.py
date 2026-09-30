@@ -5,7 +5,9 @@ generated session descriptions, plan names). The conversation language is the
 LLM's job and never goes through this module.
 
 Keep both languages in the same entry so a missing translation is visible in
-review. An unknown language or missing key falls back to English.
+review. An unknown language or missing key falls back to English. Sport
+plugins add their own session strings through ``register`` (running:
+``sports/running/i18n.py``).
 """
 
 from __future__ import annotations
@@ -73,41 +75,8 @@ STRINGS: dict[str, dict[Language, str]] = {
             "|---|------|------|----------|-------|--------|\n"
         ),
     },
-    # ── generated sessions (plan_generator) ──
+    # ── generated plans (sport plan builders; sessions come from each sport) ──
     "plan.name": {"en": "{race} Plan — {weeks} weeks", "fr": "Plan {race} — {weeks} semaines"},
-    "wo.long_run": {
-        "en": "Long run {km:.0f}km @ easy pace ({pace})",
-        "fr": "Sortie longue {km:.0f}km @ allure facile ({pace})",
-    },
-    "wo.easy": {"en": "Easy run {km:.0f}km @ {pace}", "fr": "Sortie facile {km:.0f}km @ {pace}"},
-    "wo.recovery": {
-        "en": "Recovery jog {km:.0f}km very easy",
-        "fr": "Footing récup {km:.0f}km très facile",
-    },
-    # Session strings must stay parsable by plan_to_dsl (sync_upcoming_workouts
-    # pushes them): tempo uses the "incl."/"dont" embedded-block form, intervals
-    # an NxD set with an "r"/"rec" recovery.
-    "wo.tempo": {
-        "en": (
-            "Tempo {total:.1f}km incl. {km:.1f}km @ threshold ({pace}), 2km warmup, 1.5km cooldown"
-        ),
-        "fr": (
-            "Tempo {total:.1f}km dont {km:.1f}km @ seuil ({pace}),"
-            " échauffement 2km, retour au calme 1.5km"
-        ),
-    },
-    "wo.intervals": {
-        "en": "Intervals: 2km warmup + {reps}x1km @ {pace} rec 400m jog + 1.5km cooldown",
-        "fr": (
-            "Fractionné : échauffement 2km + {reps}x1km @ {pace} r 400m trot"
-            " + retour au calme 1.5km"
-        ),
-    },
-    "wo.fallback": {"en": "Run {km:.0f}km", "fr": "Sortie {km:.0f}km"},
-    "wo.race": {
-        "en": "Race: {race} {km:.1f}km @ {pace}",
-        "fr": "Course : {race} {km:.1f}km @ {pace}",
-    },
 }
 
 
@@ -116,14 +85,6 @@ STRINGS: dict[str, dict[Language, str]] = {
 # Unknown keys (e.g. a custom phase name in week.notes) are shown unchanged.
 LABELS: dict[str, dict[str, str]] = {
     "workout_type": {
-        "easy": "footing",
-        "long_run": "sortie longue",
-        "recovery": "récup",
-        "tempo": "tempo",
-        "interval": "fractionné",
-        "intervals": "fractionné",
-        "fartlek": "fartlek",
-        "race": "course",
         "rest": "repos",
         "strength": "renfo",
         "kine-renfo": "renfo",
@@ -143,6 +104,16 @@ LABELS: dict[str, dict[str, str]] = {
         "abandoned": "abandonné",
     },
 }
+
+
+def register(strings: dict[str, dict[Language, str]], labels: dict[str, dict[str, str]]) -> None:
+    """Add a sport plugin's strings and labels (called once when the plugin loads)."""
+    for key in strings:
+        if key in STRINGS:
+            raise ValueError(f"i18n key {key!r} is already registered")
+    STRINGS.update(strings)
+    for kind, entries in labels.items():
+        LABELS.setdefault(kind, {}).update(entries)
 
 
 def label(kind: str, key: str, lang: Language = DEFAULT_LANGUAGE) -> str:

@@ -1,18 +1,16 @@
-# Coaching methodology — universal principles
+# Running methodology — Daniels and marathon/10K practice
 
 ## Contents
 
 - 1. Daniels VDOT
-- 2. 80/20
-- 3. CTL progression +5/week max
-- 4. Recovery -25 % volume every 4 cycles
+- 2-4. Intensity split, load progression, recovery weeks (→ principles)
 - 5. Standard plan structure
 - 6. Tests and milestones in a plan
 - 7. Preparing a 10K test inside a marathon block
 - 8. Post-race recovery
 - 9. Safeguards (when to downgrade / cancel / re-target)
 
-Reference loaded by the `coaching-rules` skill when a methodology rule must be applied.
+Reference loaded by the `coaching-rules-running` skill when a running methodology rule must be applied.
 
 ## 1. Daniels VDOT
 
@@ -39,17 +37,9 @@ Daniels reference tables (read from `vdot.training_paces(vdot)` or the athlete p
 
 **Prefer the longest recent race** for the baseline (10K > 5K in reliability for a marathon).
 
-## 2. 80/20
+## 2-4. Intensity split, load progression, recovery weeks
 
-80% of weekly volume at easy pace (Easy, Z1-Z2). 20% at intensity (T-pace, M-pace, I-pace, R-pace). Strict ratio — most amateur runners run their easy runs too fast, which disrupts recovery and sinks quality sessions.
-
-## 3. CTL progression +5/week max
-
-Chronic load (CTL) must not climb by more than 5 points per week. Beyond that: injury risk and chronic fatigue. Derived rule: weekly volume never increases by more than ~10% from one week to the next.
-
-## 4. Recovery -25 % volume every 4 cycles
-
-Every 4 weeks, a **recovery week**: volume -25%, lighter quality (moderate fartlek instead of intervals). Recovery is where adaptation happens. Skipping a recovery week → progress plateaus after 8-10 weeks max.
+Universal rules, shared with every sport: `get_coaching_guide("principles")` (80/20, CTL +5/week max, recovery week every 4). For running, "easy" means Daniels E-pace and "intensity" means T / M / I / R paces.
 
 ## 5. Standard plan structure
 

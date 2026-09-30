@@ -12,8 +12,8 @@ from datetime import date
 import pytest
 
 from open_coach.models import PlannedWorkout
-from open_coach.plan_to_dsl import convert_planned_workout
 from open_coach.sports.running import pace as running_pace
+from open_coach.sports.running.plan_to_dsl import convert_planned_workout
 from open_coach.workout_dsl import (
     CooldownStep,
     IntervalStep,
@@ -283,6 +283,6 @@ class TestCarriesQuality:
         ],
     )
     def test_carries_quality(self, wtype, description, expected):
-        from open_coach.plan_to_dsl import carries_quality
+        from open_coach.sports.running.plan_to_dsl import carries_quality
 
         assert carries_quality(_w(wtype, description)) is expected

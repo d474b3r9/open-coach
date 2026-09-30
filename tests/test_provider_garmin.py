@@ -159,7 +159,7 @@ def test_parse_personal_records() -> None:
 
 async def test_personal_records_api_error_returns_empty() -> None:
     provider = GarminProvider(StubGarmin(get_personal_record=RuntimeError("down")))
-    assert await provider.personal_records() == []
+    assert await provider.personal_records() == {}
 
 
 # ── regressions found against the live account ───────────────────────────────

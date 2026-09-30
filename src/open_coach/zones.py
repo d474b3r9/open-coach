@@ -1,97 +1,24 @@
-"""Training zone calculations from VDOT and heart rate data.
+"""Heart-rate helpers shared by every sport.
 
-Provides pace zones (Daniels) and HR zones (Karvonen) with
-automatic HR estimation from watch data or activity history.
+Karvonen ranges and resting / max HR estimation from activity history. Each
+sport defines its own zones on top (running: ``sports/running/zones.py``).
 """
 
 from __future__ import annotations
 
-from open_coach.models import (
-    ActivitySummary,
-    HRRange,
-    PaceRange,
-    TrainingZones,
-    ZoneInfo,
-)
+from open_coach.models import ActivitySummary, HRRange
 from open_coach.sports.running import RUNNING, avg_pace_sec_per_km
-from open_coach.vdot import training_paces
 
 
-def pace_zones_from_vdot(vdot: float) -> TrainingZones:
-    """Calculate Daniels pace zones from VDOT.
+def karvonen_range(resting_hr: int, max_hr: int, low_pct: float, high_pct: float) -> HRRange:
+    """Heart-rate range at *low_pct*-*high_pct* of the heart-rate reserve (Karvonen).
 
-    Args:
-        vdot: The athlete's VDOT value.
-
-    Returns:
-        TrainingZones with pace ranges for each zone.
+    Target HR = resting_hr + (max_hr - resting_hr) * intensity_fraction.
     """
-    paces = training_paces(vdot)
-
-    zones = {}
-    for zone_name, (fast_pace, slow_pace) in paces.items():
-        zones[zone_name] = ZoneInfo(
-            pace=PaceRange(min_pace_sec_per_km=fast_pace, max_pace_sec_per_km=slow_pace)
-        )
-
-    return TrainingZones(**zones)
-
-
-# Karvonen HR zone percentages (of Heart Rate Reserve)
-_HR_ZONE_PERCENTAGES = {
-    "easy": (0.59, 0.74),
-    "marathon": (0.74, 0.84),
-    "threshold": (0.84, 0.88),
-    "interval": (0.88, 0.95),
-    "repetition": (0.95, 1.00),
-}
-
-
-def hr_zones_karvonen(resting_hr: int, max_hr: int) -> TrainingZones:
-    """Calculate HR zones using the Karvonen (Heart Rate Reserve) method.
-
-    Target HR = resting_hr + (max_hr - resting_hr) * intensity_fraction
-
-    Args:
-        resting_hr: Resting heart rate in BPM.
-        max_hr: Maximum heart rate in BPM.
-
-    Returns:
-        TrainingZones with HR ranges for each zone.
-
-    Raises:
-        ValueError: If resting_hr >= max_hr.
-    """
-    if resting_hr >= max_hr:
-        raise ValueError(f"Resting HR ({resting_hr}) must be less than max HR ({max_hr}).")
-
     hrr = max_hr - resting_hr
-
-    zones = {}
-    for zone_name, (low_pct, high_pct) in _HR_ZONE_PERCENTAGES.items():
-        low_hr = round(resting_hr + hrr * low_pct)
-        high_hr = round(resting_hr + hrr * high_pct)
-        zones[zone_name] = ZoneInfo(hr=HRRange(min_bpm=low_hr, max_bpm=high_hr))
-
-    return TrainingZones(**zones)
-
-
-def merge_zones(pace_zones: TrainingZones, hr_zones: TrainingZones) -> TrainingZones:
-    """Merge pace zones and HR zones into combined TrainingZones.
-
-    Args:
-        pace_zones: Zones with pace data.
-        hr_zones: Zones with HR data.
-
-    Returns:
-        TrainingZones with both pace and HR for each zone.
-    """
-    merged = {}
-    for zone_name in ["easy", "marathon", "threshold", "interval", "repetition"]:
-        pace_info = getattr(pace_zones, zone_name)
-        hr_info = getattr(hr_zones, zone_name)
-        merged[zone_name] = ZoneInfo(pace=pace_info.pace, hr=hr_info.hr)
-    return TrainingZones(**merged)
+    return HRRange(
+        min_bpm=round(resting_hr + hrr * low_pct), max_bpm=round(resting_hr + hrr * high_pct)
+    )
 
 
 def estimate_resting_hr(activities: list[ActivitySummary]) -> int | None:
@@ -110,13 +37,13 @@ def estimate_resting_hr(activities: list[ActivitySummary]) -> int | None:
     # Filter for easy/long runs (> 30 min, pace > 5:00/km = 300 sec/km)
     easy_hrs = []
     for a in activities:
-        pace = avg_pace_sec_per_km(a.duration_s, a.distance_m)
+        sec_per_km = avg_pace_sec_per_km(a.duration_s, a.distance_m)
         if (
             a.sport == RUNNING
             and a.avg_hr is not None
             and a.duration_s > 1800
-            and pace is not None
-            and pace > 300
+            and sec_per_km is not None
+            and sec_per_km > 300
         ):
             easy_hrs.append(a.avg_hr)
 

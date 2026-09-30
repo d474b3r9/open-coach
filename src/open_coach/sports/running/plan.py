@@ -6,7 +6,7 @@ Pure computation — no I/O. Entry point: generate_plan().
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
-from typing import Any, Literal
+from typing import Any
 
 from open_coach.i18n import DEFAULT_LANGUAGE, t
 from open_coach.models import (
@@ -17,23 +17,16 @@ from open_coach.models import (
     TrainingPlan,
     TrainingWeek,
 )
+from open_coach.periodization import (
+    WeekType,
+    assign_week_types,
+    available_day_indices,
+    max_minutes_for_day,
+    volume_for_week,
+)
 from open_coach.sports.base import Volume
 from open_coach.sports.running import pace
-from open_coach.vdot import format_pace, predict_time, training_paces
-
-# Weekday name → index (Monday = 0)
-_DAY_INDEX: dict[str, int] = {
-    "monday": 0,
-    "tuesday": 1,
-    "wednesday": 2,
-    "thursday": 3,
-    "friday": 4,
-    "saturday": 5,
-    "sunday": 6,
-}
-
-WeekType = Literal["base", "build", "peak", "taper", "recovery"]
-
+from open_coach.sports.running.vdot import format_pace, predict_time, training_paces
 
 # ── Distance-specific parameters ───────────────────────────────────────────────
 
@@ -61,99 +54,7 @@ def _target_peak_km(vdot: float, distance_m: float) -> float:
     return min(45.0, max(25.0, vdot * 0.6))
 
 
-# ── Week type assignment ───────────────────────────────────────────────────────
-
-
-def _assign_week_types(total_weeks: int, distance_m: float) -> list[WeekType]:
-    """Assign a type to each training week (chronological order).
-
-    On short horizons (total_weeks < taper + peak) the taper is shortened
-    first, then the peak, so the plan never exceeds total_weeks.
-    """
-    taper = _taper_weeks(distance_m)
-    peak = _peak_weeks(distance_m)
-    if taper + peak > total_weeks:
-        taper = max(1, total_weeks - peak)
-        peak = max(0, total_weeks - taper)
-    build_base_count = max(0, total_weeks - taper - peak)
-
-    types: list[WeekType] = []
-
-    for i in range(build_base_count):
-        if (i + 1) % 4 == 0:
-            types.append("recovery")
-        elif i < build_base_count // 2:
-            types.append("base")
-        else:
-            types.append("build")
-
-    for _ in range(peak):
-        types.append("peak")
-
-    for _ in range(taper):
-        types.append("taper")
-
-    return types
-
-
-# ── Volume calculation ─────────────────────────────────────────────────────────
-
-
-def _volume_for_week(
-    i: int,
-    week_type: WeekType,
-    start_km: float,
-    peak_km: float,
-    week_types: list[WeekType],
-) -> float:
-    """Target weekly volume in km."""
-    total = len(week_types)
-    n_taper = sum(1 for t in week_types if t == "taper")
-    n_peak = sum(1 for t in week_types if t == "peak")
-    build_end = total - n_taper - n_peak
-
-    if week_type == "taper":
-        taper_i = i - build_end - n_peak
-        taper_fracs = [0.80, 0.65, 0.45]
-        frac = taper_fracs[min(taper_i, len(taper_fracs) - 1)]
-        return round(peak_km * frac, 1)
-
-    if week_type == "peak":
-        return round(peak_km, 1)
-
-    # Base / build / recovery: linear progression from start_km to peak_km
-    progress = i / max(1, build_end - 1) if build_end > 1 else 1.0
-    expected = start_km + (peak_km - start_km) * min(1.0, progress)
-
-    if week_type == "recovery":
-        return round(expected * 0.70, 1)
-
-    return round(expected, 1)
-
-
 # ── Day assignment ─────────────────────────────────────────────────────────────
-
-
-def _max_minutes_for_day(day_idx: int, constraints: TrainingConstraints) -> int | None:
-    """Session duration cap for a weekday index (Saturday/Sunday use the weekend cap)."""
-    if day_idx >= 5:
-        return constraints.max_weekend_minutes
-    return constraints.max_weekday_minutes
-
-
-def _get_available_day_indices(constraints: TrainingConstraints) -> list[int]:
-    """Sorted weekday indices from constraints, or default Mon/Wed/Fri/Sun."""
-    if constraints.available_days:
-        indices = sorted(
-            _DAY_INDEX[d.lower()] for d in constraints.available_days if d.lower() in _DAY_INDEX
-        )
-    else:
-        indices = [0, 2, 4, 6]  # Mon, Wed, Fri, Sun
-
-    if constraints.max_sessions_per_week:
-        indices = indices[: constraints.max_sessions_per_week]
-
-    return indices
 
 
 def _assign_roles(days: list[int], week_type: WeekType) -> dict[int, str]:
@@ -383,15 +284,17 @@ def generate_plan(
         ),
     )
 
-    week_types = _assign_week_types(total_weeks, goal.distance_m)
+    week_types = assign_week_types(
+        total_weeks, _taper_weeks(goal.distance_m), _peak_weeks(goal.distance_m)
+    )
     paces = training_paces(vdot)
-    day_indices = _get_available_day_indices(constraints) or [0, 2, 4, 6]
+    day_indices = available_day_indices(constraints) or [0, 2, 4, 6]
 
     weeks: list[TrainingWeek] = []
 
     for i, week_type in enumerate(week_types):
         week_start = start_date + timedelta(weeks=i)
-        target_km = _volume_for_week(i, week_type, current_weekly_km, peak_km, week_types)
+        target_km = volume_for_week(i, week_type, current_weekly_km, peak_km, week_types)
 
         roles = _assign_roles(day_indices, week_type)
         n_sessions = len(roles)
@@ -408,7 +311,7 @@ def generate_plan(
                     target_km,
                     n_sessions,
                     paces,
-                    max_minutes=_max_minutes_for_day(day_idx, constraints),
+                    max_minutes=max_minutes_for_day(day_idx, constraints),
                     lang=lang,
                 )
             )

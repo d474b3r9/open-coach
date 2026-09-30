@@ -6,22 +6,22 @@ from datetime import date, timedelta
 
 from open_coach.models import AthleteProfile
 from open_coach.tools.training import (
-    calculate_vdot_from_race,
+    calculate_fitness_from_race,
     get_training_load,
     get_training_zones,
 )
 from tests.conftest import MockStorage, StubGarmin, mock_ctx, running_profile
 
 
-class TestCalculateVdotFromRace:
+class TestCalculateFitnessFromRace:
     async def test_10k_result(self):
-        result = await calculate_vdot_from_race(10000, 2400)  # 40:00 10K
+        result = await calculate_fitness_from_race(10000, 2400)  # 40:00 10K
         assert 50 < result["vdot"] < 56
         assert set(result["race_predictions"]) == {"5K", "10K", "Half", "Marathon"}
         assert set(result["training_paces"]) >= {"easy", "threshold", "interval"}
 
     async def test_paces_are_formatted_ranges(self):
-        result = await calculate_vdot_from_race(5000, 1500)
+        result = await calculate_fitness_from_race(5000, 1500)
         for value in result["training_paces"].values():
             assert value.endswith("/km")
             assert " - " in value
@@ -29,7 +29,7 @@ class TestCalculateVdotFromRace:
 
 class TestGetTrainingZones:
     async def test_with_explicit_vdot(self):
-        result = await get_training_zones(vdot=50.0, ctx=mock_ctx(storage=MockStorage()))
+        result = await get_training_zones(fitness=50.0, ctx=mock_ctx(storage=MockStorage()))
         assert result["vdot"] == 50.0
         assert set(result["zones"]) == {"easy", "marathon", "threshold", "interval", "repetition"}
         assert result["zones"]["easy"]["pace"] is not None
@@ -73,7 +73,7 @@ class TestGetTrainingZones:
 
     async def test_explicit_vdot_still_merges_profile_hr(self):
         storage = MockStorage(profile=AthleteProfile(resting_hr=50, max_hr=190))
-        result = await get_training_zones(vdot=55.0, ctx=mock_ctx(storage=storage))
+        result = await get_training_zones(fitness=55.0, ctx=mock_ctx(storage=storage))
         assert result["vdot"] == 55.0
         assert result["zones"]["easy"]["hr"] is not None
 

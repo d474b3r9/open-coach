@@ -78,13 +78,13 @@ The most testable code lives in pure modules (no I/O), under `src/open_coach/`:
 
 | Module | Responsibility | Refs |
 |---|---|---|
-| `vdot.py` | Daniels-Gilbert VDOT engine. `calculate_vdot`, `predict_time`, `training_paces`. | Daniels, *Running Formula*, 4th ed. |
-| `zones.py` | Pace zones from VDOT, HR zones via Karvonen. | Karvonen formula for HR; Daniels for paces. |
+| `sports/running/vdot.py` | Daniels-Gilbert VDOT engine. `calculate_vdot`, `predict_time`, `training_paces`. | Daniels, *Running Formula*, 4th ed. |
+| `sports/running/zones.py` | Daniels pace zones, HR zones via Karvonen (`zones.karvonen_range`). | Karvonen formula for HR; Daniels for paces. |
 | `training_load.py` | hrTSS → `calculate_load_series` → CTL/ATL/TSB (EWMA 42d/7d). | Coggan, TSS/CTL methodology. |
-| `workout_dsl.py` | Pydantic DSL models + `parse_dsl(name, text)`. | Custom. Designed for Garmin watch storage limits. |
-| `providers/garmin_workout.py` | DSL → `RunningWorkout` (garminconnect schema). | Bridges DSL → Garmin API (Garmin provider). |
-| `plan_generator.py` | `generate_plan` → `TrainingPlan` (Base/Build/Peak/Taper). | Periodization classic. |
-| `race_predictor.py` | Race predictions from VDOT + pacing splits + readiness scoring. | Daniels + custom adjustments. |
+| `workout_dsl.py` | Pydantic DSL models + `parse_dsl(name, text, sport)`. | Custom. Designed for Garmin watch storage limits. |
+| `providers/garmin_workout.py` | DSL → the garminconnect workout of its sport (`RunningWorkout`…). | Bridges DSL → Garmin API (Garmin provider). |
+| `periodization.py` + `sports/running/plan.py` | Week skeleton (Base/Build/Peak/Taper) + running sessions → `TrainingPlan`. | Periodization classic. |
+| `sports/running/race.py` | Race predictions from VDOT + pacing splits + readiness scoring. | Daniels + custom adjustments. |
 | `recovery_monitor.py` | Multi-signal recovery scoring (HRV, sleep, stress, training load, subjective feel). | Adaptive recommendations. |
 | `plan_renderer.py` | `render_plan_to_markdown(plan)` — pure formatter. | I/O wrapper in `write_plan_markdown`. |
 
@@ -242,7 +242,7 @@ For pure-computation logic, put the algorithm in a sibling top-level module (`sr
 
 ### Adding a coaching rule to `coaching-rules`
 
-`.agents/skills/coaching-rules/SKILL.md` is the entry point: how to read the profile and the journal, and which reference file covers what. The rules themselves live in `references/` (`methodology.md`, `dsl-conventions.md`, `anti-patterns.md`), each loaded on demand. Add yours to the file that matches its topic, as a named section (e.g. `## Rule F — …` in `dsl-conventions.md`), and update that file's `## Contents` list. A new reference file must be linked from `SKILL.md` and added to `METHODOLOGY_TOPICS` in `src/open_coach/guides.py` so MCP clients get it too. If the rule comes from a specific incident, say so in the rule text with the date; the journal (`plans/training-journal.md`, private) is where the incident itself is recorded.
+`.agents/skills/coaching-rules/SKILL.md` is the entry point: how to read the profile and the journal, the universal principles (`references/principles.md`), and the table of sport rules guides. Sport rules live in `coaching-rules-<sport>/` — running: `.agents/skills/coaching-rules-running/references/` (`methodology.md`, `dsl-conventions.md`, `anti-patterns.md`), each loaded on demand. Add yours to the file that matches its topic, as a named section (e.g. `## Rule F — …` in `dsl-conventions.md`), and update that file's `## Contents` list. A new reference file must be linked from `SKILL.md` and added to `METHODOLOGY_TOPICS` in `src/open_coach/guides.py` so MCP clients get it too. If the rule comes from a specific incident, say so in the rule text with the date; the journal (`plans/training-journal.md`, private) is where the incident itself is recorded.
 
 If your rule depends on athlete-specific data (e.g. "if HR cap is < 140 …"), make sure the rule reads it from `athlete-profile.md` at runtime — never hardcode.
 

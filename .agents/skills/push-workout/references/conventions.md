@@ -34,7 +34,7 @@ and ensure sessions are consistent with the Daniels-Gilbert method.
 | I (Interval) | VO2max | 95-100% | 3-5min intervals |
 | R (Repetition) | Speed | 105-120% | Short repeats ≤2min |
 
-Exact paces are computed by `calculate_vdot_from_race` and `get_training_zones`.
+Exact paces are computed by `calculate_fitness_from_race` and `get_training_zones(sport="running")`.
 **Always** use zones from the profile (`get_training_zones` / `get_coaching_context`) rather than hardcoded values.
 
 ## Recovery intervals
@@ -145,7 +145,7 @@ Exact paces are computed by `calculate_vdot_from_race` and `get_training_zones`.
 2. **Forgetting recovery** in a REPEAT block for long intervals (>3min).
 
 3. **Hardcoding paces** without checking the athlete profile. Always start from
-   `get_training_zones(vdot=<vdot_from_profile>)`.
+   `get_training_zones(sport="running", fitness=<vdot_from_profile>)`.
 
 4. **Exceeding 50 steps**: 10×1000m with recovery = 1 (warmup) + 1 (repeat group) + 10×2 (inner steps) + 1 (cooldown) = 23 steps ✓
 

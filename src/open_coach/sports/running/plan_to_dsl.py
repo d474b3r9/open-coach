@@ -33,10 +33,10 @@ The embedded keyword is deliberately narrow: ``with`` is NOT accepted, since
 from __future__ import annotations
 
 import re
-from dataclasses import dataclass
 
 from open_coach.models import PlannedWorkout
-from open_coach.sports.running import RUNNING, pace_of
+from open_coach.sports.base import Conversion
+from open_coach.sports.running import RUNNING, RunningSport, pace_of
 from open_coach.workout_dsl import (
     CooldownStep,
     DSLWorkout,
@@ -82,20 +82,8 @@ _RECOVERY_RE = re.compile(
     re.IGNORECASE,
 )
 
-_QUALITY_TYPES = {"tempo", "interval", "intervals", "fartlek"}
+_QUALITY_TYPES = RunningSport.quality_types
 _STEADY_TYPES = {"easy", "long_run", "recovery"}
-
-
-@dataclass(frozen=True)
-class Conversion:
-    """Result of a plan → DSL conversion."""
-
-    dsl: DSLWorkout | None
-    reason: str | None = None  # populated when dsl is None
-
-    @property
-    def ok(self) -> bool:
-        return self.dsl is not None
 
 
 # ── helpers ───────────────────────────────────────────────────────────────────

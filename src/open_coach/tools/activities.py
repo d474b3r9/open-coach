@@ -9,7 +9,7 @@ from fastmcp import Context
 
 from open_coach.server import mcp
 from open_coach.sports.base import ActivitySport
-from open_coach.sports.running import RUNNING, avg_pace_sec_per_km
+from open_coach.sports.registry import get_sport, is_registered
 from open_coach.tools._common import (
     compact_payload,
     get_watch,
@@ -62,8 +62,10 @@ async def get_recent_activities(
             "elevation_gain_m": a.elevation_gain_m,
             "calories": a.calories,
         }
-        if a.sport == RUNNING:
-            row["avg_pace_sec_per_km"] = avg_pace_sec_per_km(a.duration_s, a.distance_m)
+        if is_registered(a.sport):
+            plugin = get_sport(a.sport)
+            intensity = plugin.activity_intensity(a.distance_m, a.duration_s)
+            row[f"avg_{plugin.intensity_kind}"] = intensity.value if intensity else None
         results.append(row)
     return {"activities": results, "count": len(results)}
 

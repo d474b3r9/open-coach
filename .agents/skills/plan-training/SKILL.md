@@ -8,7 +8,7 @@ metadata:
 
 # plan-training
 
-Workflow (tools of the open-coach MCP server) to generate / update a training plan and sync it with the watch. For the coaching rules (Daniels, 80/20, phase structure, test placement), see the `coaching-rules` methodology (`get_coaching_guide("methodology")`). For the DSL conventions of pushed workouts, see `get_coaching_guide("dsl-conventions")`.
+Workflow (tools of the open-coach MCP server) to generate / update a training plan and sync it with the watch. For the coaching rules (Daniels, 80/20, phase structure, test placement), see the running methodology (`get_coaching_guide("running-methodology")`; universal rules: `get_coaching_guide("principles")`). For the DSL conventions of pushed workouts, see `get_coaching_guide("running-dsl-conventions")`.
 
 Copy this checklist and tick it off as you go:
 

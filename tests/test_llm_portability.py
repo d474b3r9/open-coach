@@ -45,8 +45,11 @@ def test_every_workflow_skill_on_disk_is_exposed():
     """A new .agents/skills/<workflow>/ must be added to WORKFLOWS (and GuideName)."""
     root = skills_dir()
     assert root is not None
+    # coaching-rules and coaching-rules-<sport> are rules guides, not workflows.
     on_disk = {
-        d.name for d in root.iterdir() if (d / "SKILL.md").is_file() and d.name != "coaching-rules"
+        d.name
+        for d in root.iterdir()
+        if (d / "SKILL.md").is_file() and not d.name.startswith("coaching-rules")
     }
     # extract-transcript is a repo maintenance skill (needs a shell), not a coaching workflow.
     assert on_disk - {"extract-transcript"} == set(WORKFLOWS)
@@ -101,8 +104,10 @@ async def test_skills_served_as_skill_resources():
     for name in SERVED_SKILLS:
         assert f"skill://{name}/SKILL.md" in uris, name
     assert "skill://extract-transcript/SKILL.md" not in uris
-    result = await mcp.read_resource("skill://coaching-rules/references/methodology.md")
+    result = await mcp.read_resource("skill://coaching-rules-running/references/methodology.md")
     assert "Daniels" in str(result)
+    result = await mcp.read_resource("skill://coaching-rules/references/principles.md")
+    assert "80/20" in str(result)
 
 
 async def test_tool_description_embeds_the_catalog():

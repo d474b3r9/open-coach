@@ -1,14 +1,14 @@
-"""MCP tools for VDOT calculation, training zones, and training load."""
+"""MCP tools for fitness from a race, training zones (per sport) and training load."""
 
 from __future__ import annotations
 
 from datetime import date
-from typing import Any
 
 from fastmcp import Context
 
 from open_coach.server import mcp
-from open_coach.sports.running import vdot_of
+from open_coach.sports.base import SportKey
+from open_coach.sports.registry import get_sport
 from open_coach.tools._common import (
     LOAD_WINDOW_DAYS,
     get_watch,
@@ -16,118 +16,65 @@ from open_coach.tools._common import (
     watch_error,
 )
 from open_coach.training_load import interpret_tsb
-from open_coach.vdot import (
-    HALF_MARATHON_M,
-    MARATHON_M,
-    calculate_vdot,
-    format_pace,
-    format_time,
-    predict_time,
-    training_paces,
-)
-from open_coach.zones import hr_zones_karvonen, merge_zones, pace_zones_from_vdot
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
-async def calculate_vdot_from_race(distance_meters: float, time_seconds: float) -> dict:
-    """Calculate VDOT and training paces from a race result or time trial.
+async def calculate_fitness_from_race(
+    distance_meters: float, time_seconds: float, sport: SportKey = "running"
+) -> dict:
+    """Fitness marker of a sport from a race result or time trial, with its training targets.
+
+    Running: VDOT (Daniels), training paces and race predictions.
 
     Args:
         distance_meters: Race distance in meters (e.g. 5000, 10000, 21097.5, 42195).
         time_seconds: Finish time in seconds.
-
-    Returns:
-        Dict with VDOT value, training paces, and race predictions.
+        sport: Sport of the result (default running).
     """
-    vdot = calculate_vdot(distance_meters, time_seconds)
-    paces = training_paces(vdot)
-
-    predictions = {}
-    for name, dist in [
-        ("5K", 5000),
-        ("10K", 10000),
-        ("Half", HALF_MARATHON_M),
-        ("Marathon", MARATHON_M),
-    ]:
-        t = predict_time(vdot, dist)
-        predictions[name] = format_time(t)
-
-    formatted_paces = {}
-    for zone, (fast, slow) in paces.items():
-        formatted_paces[zone] = f"{format_pace(fast)} - {format_pace(slow)}/km"
-
+    plugin = get_sport(sport)
+    fitness = plugin.fitness_from_race(distance_meters, time_seconds)
     return {
-        "vdot": round(vdot, 1),
-        "training_paces": formatted_paces,
-        "race_predictions": predictions,
+        "sport": sport,
+        "fitness": fitness.model_dump(),
+        **plugin.describe_fitness(fitness.value),
     }
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
 async def get_training_zones(
-    vdot: float | None = None,
+    sport: SportKey = "running",
+    fitness: float | None = None,
     race_distance_m: float | None = None,
     race_time_s: float | None = None,
     ctx: Context | None = None,
 ) -> dict:
-    """Calculate Daniels training zones (pace + HR) from VDOT or a recent race.
+    """Training zones of a sport (running: Daniels pace zones + Karvonen HR).
 
-    Provide either vdot directly, or race_distance_m + race_time_s to compute it.
+    The fitness marker (running: VDOT) comes from ``fitness``, else from a race
+    result (``race_distance_m`` + ``race_time_s``), else from the profile.
 
     Args:
-        vdot: VDOT value (if known).
-        race_distance_m: Race distance in meters (alternative to vdot).
-        race_time_s: Race time in seconds (alternative to vdot).
+        sport: Sport of the zones (default running).
+        fitness: Fitness marker value (running: VDOT), if known.
+        race_distance_m: Race distance in meters (alternative to fitness).
+        race_time_s: Race time in seconds (alternative to fitness).
     """
     assert ctx is not None
     storage = ctx.lifespan_context["storage"]
     profile = storage.load_profile()
+    plugin = get_sport(sport)
 
-    if vdot is None:
+    if fitness is None:
         if race_distance_m and race_time_s:
-            vdot = calculate_vdot(race_distance_m, race_time_s)
-        elif (profile_vdot := vdot_of(profile)) is not None:
-            vdot = profile_vdot
+            fitness = plugin.fitness_from_race(race_distance_m, race_time_s).value
+        elif profile is not None and (marker := profile.sport_profile(sport).fitness):
+            fitness = marker.value
         else:
-            return {"error": "No VDOT available. Provide race data or run onboarding first."}
+            return {
+                "error": f"No {sport} fitness available. Provide race data or run onboarding first."
+            }
 
-    zones = pace_zones_from_vdot(vdot)
-    hr_source: dict[str, Any] | None = None
-    if (
-        profile is not None
-        and profile.resting_hr is not None
-        and profile.max_hr is not None
-        and profile.resting_hr < profile.max_hr
-    ):
-        zones = merge_zones(zones, hr_zones_karvonen(profile.resting_hr, profile.max_hr))
-        hr_source = {
-            "resting_hr": profile.resting_hr,
-            "max_hr": profile.max_hr,
-            "method": "karvonen",
-        }
-
-    result: dict[str, Any] = {"vdot": round(vdot, 1), "zones": {}}
-    for zone_name in ["easy", "marathon", "threshold", "interval", "repetition"]:
-        zone_info = getattr(zones, zone_name)
-        result["zones"][zone_name] = {
-            "pace": (
-                f"{format_pace(zone_info.pace.min_pace_sec_per_km)}"
-                f" - {format_pace(zone_info.pace.max_pace_sec_per_km)}/km"
-            )
-            if zone_info.pace
-            else None,
-            "hr": (f"{zone_info.hr.min_bpm}-{zone_info.hr.max_bpm} bpm" if zone_info.hr else None),
-        }
-
-    if hr_source is not None:
-        result["hr_source"] = hr_source
-    else:
-        result["hint"] = (
-            "HR zones unavailable — set resting_hr and max_hr via "
-            "update_athlete_profile or run bootstrap_athlete_profile."
-        )
-
-    return result
+    return plugin.training_zones(profile, fitness)
 
 
 @mcp.tool(annotations={"readOnlyHint": True})

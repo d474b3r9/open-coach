@@ -32,7 +32,7 @@ from pathlib import Path
 
 import pytest
 
-from open_coach.vdot import predict_time
+from open_coach.sports.running.vdot import predict_time
 
 FIXTURES_DIR = Path(__file__).resolve().parent / "data"
 

@@ -84,7 +84,7 @@ known-first-party = ["open_coach"]
 # ASYNC240: tests are sync-in-effect (pytest-asyncio), blocking Path I/O on tmp_path is fine.
 "tests/**" = ["ARG001", "ARG002", "ASYNC240", "RUF001"]
 # The × sign is the literal character used in plan descriptions the parser must match.
-"src/open_coach/plan_to_dsl.py" = ["RUF001", "RUF002", "RUF003"]
+"src/open_coach/sports/running/plan_to_dsl.py" = ["RUF001", "RUF002", "RUF003"]
 
 [tool.mypy]
 python_version = "3.12"
