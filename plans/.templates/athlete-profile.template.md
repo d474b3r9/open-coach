@@ -1,6 +1,6 @@
 # Athlete profile — template
 
-> Replace every `<...>` placeholder with your own values. The skill `entraineur` reads this file at the start of every coaching session and applies the rules in it. **Do not commit this file** — it lives in the gitignored `plans/` directory.
+> Replace every `<...>` placeholder with your own values. The skill `coaching-rules` reads this file at the start of every coaching session and applies the rules in it. **Do not commit this file** — it lives in the gitignored `plans/` directory.
 
 ## 1. Profile
 
@@ -34,7 +34,7 @@
 
 ## 3. Race calendar
 
-> List your target races. The skill `entraineur` uses these dates to structure plans (base/build/peak/taper phases, test placement, post-race breaks).
+> List your target races. The skill `coaching-rules` uses these dates to structure plans (base/build/peak/taper phases, test placement, post-race breaks).
 
 | Date | Distance | Race | Status | Target time |
 |---|---|---|---|---|
@@ -44,7 +44,7 @@ A = main goal race, B = secondary, rehearsal = dress rehearsal.
 
 ## 4. Physical constraints
 
-> List structural constraints (past injuries, weak spots, limitations). The skill `entraineur` adapts sessions accordingly (no hills if a tendon is fragile, etc.).
+> List structural constraints (past injuries, weak spots, limitations). The skill `coaching-rules` adapts sessions accordingly (no hills if a tendon is fragile, etc.).
 
 - **Injury history**: `<injury, side, year>`
 - **Weak spots**: `<areas to monitor>`
@@ -74,7 +74,7 @@ A = main goal race, B = secondary, rehearsal = dress rehearsal.
 
 ## 6. Race nutrition preferences
 
-> The skill `entraineur` proposes gel/hydration plans aligned with these preferences without challenging them every session.
+> The skill `coaching-rules` proposes gel/hydration plans aligned with these preferences without challenging them every session.
 
 - **Preferred gel format**: `<gel | liquid | bar>` — a single format
 - **Starter gel**: `<yes, T-x | no>`
@@ -101,7 +101,7 @@ A = main goal race, B = secondary, rehearsal = dress rehearsal.
 
 ## 8. Personal anti-patterns (settled preferences)
 
-> The skill `entraineur` must never propose these things again:
+> The skill `coaching-rules` must never propose these things again:
 
 - ❌ `<thing never to propose again>`
 - ❌ `<...>`

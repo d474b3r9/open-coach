@@ -191,7 +191,7 @@ def build_running_workout(dsl: DSLWorkout) -> RunningWorkout:
 
     if not _ends_with_lap_button(top_steps):
         # Athlete convention: every workout ends on a lap press, never on an
-        # automatic stop (see entraineur/references/dsl-conventions.md, Rule D).
+        # automatic stop (see coaching-rules/references/dsl-conventions.md, Rule D).
         top_steps.append(_build_executable(_STEP_COOLDOWN, Duration(lap_button=True), None, order))
 
     return RunningWorkout(

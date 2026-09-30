@@ -1,6 +1,6 @@
 # Journal coureur — template
 
-> Journal en ajout seul, lu en début de session par le skill `entraineur`. **Toujours ajouter en bas de chaque section, ne jamais réécrire les entrées passées.** L'historique reste intact même quand une décision est révisée : ajouter une nouvelle entrée qui invalide l'ancienne. **Ne commite pas ce fichier** : il vit dans le dossier `plans/`, ignoré par git.
+> Journal en ajout seul, lu en début de session par le skill `coaching-rules`. **Toujours ajouter en bas de chaque section, ne jamais réécrire les entrées passées.** L'historique reste intact même quand une décision est révisée : ajouter une nouvelle entrée qui invalide l'ancienne. **Ne commite pas ce fichier** : il vit dans le dossier `plans/`, ignoré par git.
 
 ## Format des entrées
 

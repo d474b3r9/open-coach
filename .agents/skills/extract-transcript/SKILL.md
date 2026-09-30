@@ -1,6 +1,6 @@
 ---
 name: extract-transcript
-description: Extracts YouTube video transcripts into plans/references/ as markdown so the entraineur methodology can cite external coaching methods. Use when the user pastes one or more YouTube URLs to import, summarize or apply a method ("extract", "transcript", "apply this method", "what do you think", "méthode", "vidéo", "qu'en penses-tu", "applique cette méthode"), or invokes /extract-transcript.
+description: Extracts YouTube video transcripts into plans/references/ as markdown so the coaching-rules methodology can cite external coaching methods. Use when the user pastes one or more YouTube URLs to import, summarize or apply a method ("extract", "transcript", "apply this method", "what do you think", "méthode", "vidéo", "qu'en penses-tu", "applique cette méthode"), or invokes /extract-transcript.
 compatibility: Requires a shell, uv and network access.
 metadata:
   version: "1.2.0"
@@ -84,13 +84,13 @@ Propose to the athlete the entry to append to `plans/references/INDEX.md`, forma
 
 Place it in the appropriate section (Marathon / Ultra / Recovery / Nutrition / Strength). If the category does not exist → add one.
 
-**Wait for validation** before writing to INDEX.md (a change potentially read by every future session of the `entraineur` skill).
+**Wait for validation** before writing to INDEX.md (a change potentially read by every future session of the `coaching-rules` skill).
 
 ### Step 4 — Logical follow-up
 
 Once indexed, offer:
 - "Do you want me to compare these pillars with the active race plan?" (read the current target race from `plans/athlete-profile.md` § Race calendar)
-- If yes → apply the standard `entraineur` workflow (read profile + journal + active plan), produce a diff of proposals, **wait for validation before any plan edit**.
+- If yes → apply the standard `coaching-rules` workflow (read profile + journal + active plan), produce a diff of proposals, **wait for validation before any plan edit**.
 
 Reply in the athlete's language (English or French) throughout.
 

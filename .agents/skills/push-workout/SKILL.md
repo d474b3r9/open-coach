@@ -8,7 +8,7 @@ metadata:
 
 # push-workout
 
-Workflow (tools of the open-coach MCP server) to build a `DSLWorkout` and push it to the watch. **The strict rules for building the DSL** (lap_button warmup, easy run = 1 block, ±5 s pace target, warmup ≥ 15 min) live in the `entraineur` methodology → `get_coaching_guide("dsl-conventions")` — load them before generating a workout. Session templates, pace tables and common mistakes: [references/conventions.md](references/conventions.md).
+Workflow (tools of the open-coach MCP server) to build a `DSLWorkout` and push it to the watch. **The strict rules for building the DSL** (lap_button warmup, easy run = 1 block, ±5 s pace target, warmup ≥ 15 min) live in the `coaching-rules` methodology → `get_coaching_guide("dsl-conventions")` — load them before generating a workout. Session templates, pace tables and common mistakes: [references/conventions.md](references/conventions.md).
 
 Copy this checklist and tick it off as you go:
 

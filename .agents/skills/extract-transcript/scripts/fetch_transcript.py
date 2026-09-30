@@ -254,7 +254,7 @@ def ensure_index_file() -> None:
     skeleton = (
         "# Reference corpus — coaching methodologies\n"
         "\n"
-        "> Read at the start of each session by the `entraineur` skill. The **pillars** below "
+        "> Read at the start of each session by the `coaching-rules` skill. The **pillars** below "
         "are distilled by Claude after extracting each transcript.\n"
         "> To dig into a methodology: open the matching transcript file.\n"
         "\n"

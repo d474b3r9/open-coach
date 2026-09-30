@@ -8,7 +8,7 @@ metadata:
 
 # Onboard
 
-Workflow (tools of the open-coach MCP server) to bootstrap the athlete profile. For the coaching rules to apply afterwards, see the `entraineur` methodology (`get_coaching_guide("rules")`).
+Workflow (tools of the open-coach MCP server) to bootstrap the athlete profile. For the coaching rules to apply afterwards, see the `coaching-rules` methodology (`get_coaching_guide("rules")`).
 
 ## Steps
 

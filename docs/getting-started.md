@@ -22,7 +22,7 @@ Personal-tooling project: bridge the gap. Take the **rigor of Daniels-Gilbert VD
 Three constraints shaped the architecture:
 
 1. **No vendor lock-in to a single device.** Strava as fallback when Garmin SSO is locked out, optional Google Drive sync to share plan markdown across machines, plain JSON for all local state.
-2. **Methodology auditable, not hardcoded.** Coaching rules sit in `.agents/skills/entraineur/SKILL.md`. You can read them. You can argue with them. You can fork them. They are *not* buried in a planner function.
+2. **Methodology auditable, not hardcoded.** Coaching rules sit in `.agents/skills/coaching-rules/SKILL.md`. You can read them. You can argue with them. You can fork them. They are *not* buried in a planner function.
 3. **Personal data never leaks into the repo.** Templates ship; values stay local. Any fork starts from a blank slate, not from someone else's race calendar.
 
 ---
@@ -34,7 +34,7 @@ Three constraints shaped the architecture:
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                                                             │
-│   Claude Code  ←→  entraineur skill (methodology rules)     │
+│   Claude Code  ←→  coaching-rules skill (methodology rules)     │
 │        │                                                    │
 │        │     (consults rules BEFORE any recommendation)     │
 │        ↓                                                    │
@@ -52,14 +52,14 @@ Two distinct layers because they answer different questions:
 
 | Layer | Question it answers | Examples |
 |---|---|---|
-| **`entraineur` skill** | "Is this idea methodologically sound?" | "Is back-to-back hard days OK?" "Can I do hill repeats with this constraint?" "What's the right recovery format for VO2max work?" |
+| **`coaching-rules` skill** | "Is this idea methodologically sound?" | "Is back-to-back hard days OK?" "Can I do hill repeats with this constraint?" "What's the right recovery format for VO2max work?" |
 | **MCP server (data)** | "What does the data say?" | "What were my last 5 runs?" "What's my VDOT?" "When was my last hard session?" |
 
 The skill is **read by Claude on the way in** (every coaching turn pre-loads the rules). The MCP tools are **called by Claude as needed**. The split keeps reasoning transparent: if Claude proposes something weird, you can audit it by reading the rule that backed (or didn't back) the decision.
 
-### Workflow skills layer (above `entraineur`)
+### Workflow skills layer (above `coaching-rules`)
 
-Workflow skills sit in `.agents/skills/` next to `entraineur`. They follow the [Agent Skills](https://agentskills.io) open standard: Codex, Gemini CLI, Cursor, Copilot and Claude Code (through the `.claude/skills` symlink) load them natively; every other MCP client gets them from the server as `skill://` resources, MCP prompts of the same name or the `get_coaching_guide` tool. Each one wraps a procedural use case:
+Workflow skills sit in `.agents/skills/` next to `coaching-rules`. They follow the [Agent Skills](https://agentskills.io) open standard: Codex, Gemini CLI, Cursor, Copilot and Claude Code (through the `.claude/skills` symlink) load them natively; every other MCP client gets them from the server as `skill://` resources, MCP prompts of the same name or the `get_coaching_guide` tool. Each one wraps a procedural use case:
 
 | Skill | What it does | When it triggers |
 |---|---|---|
@@ -70,7 +70,7 @@ Workflow skills sit in `.agents/skills/` next to `entraineur`. They follow the [
 | `daily-check` | Multi-signal recovery + adaptive session | "should I train hard today?" |
 | `race-ready` | Pre-race readiness, pacing, taper sanity | "am I ready for Sunday?" |
 
-Each workflow skill *references* `entraineur` for the rules. It calls MCP tools to fetch data. The split prevents combinatorial explosion: 6 workflows × 1 rule set = 6 surface areas to maintain, not 6 × 30 rules duplicated.
+Each workflow skill *references* `coaching-rules` for the rules. It calls MCP tools to fetch data. The split prevents combinatorial explosion: 6 workflows × 1 rule set = 6 surface areas to maintain, not 6 × 30 rules duplicated.
 
 ### Pure-computation modules
 
@@ -161,7 +161,7 @@ What happens behind the scenes:
 1. Claude loads the `analyze-run` workflow skill (matching trigger).
 2. The skill instructs Claude to call `get_recent_runs(days=14, limit=5)`.
 3. The MCP server reaches Garmin, returns 5 most recent runs with HR / pace / distance / cadence / etc.
-4. Claude reads `entraineur` rules (loaded at startup) for the analytical lens (e.g. easy = E-pace, no hard days back-to-back, …).
+4. Claude reads `coaching-rules` rules (loaded at startup) for the analytical lens (e.g. easy = E-pace, no hard days back-to-back, …).
 5. Claude generates a human report.
 
 You should get something like a per-session breakdown with "what was the goal", "what was the actual", "deviation analysis", "trend over the 5 sessions". If you have an active plan, Claude will also reference the expected session per the plan.
@@ -203,7 +203,7 @@ What happens:
 1. `daily-check` workflow loads.
 2. Claude calls `get_recovery_status()` → multi-signal score (HRV last night, sleep duration/quality, stress, training load TSB, subjective feel).
 3. Reads today's planned session.
-4. Applies `entraineur` rules: "if TSB < −15 and HRV deviation > 1σ → green-light Q2 only, defer Q1". "If sleep < 5h → swap quality for easy."
+4. Applies `coaching-rules` rules: "if TSB < −15 and HRV deviation > 1σ → green-light Q2 only, defer Q1". "If sleep < 5h → swap quality for easy."
 5. Outputs the adapted session — and updates the plan if you accept.
 
 ### Step 7 — Read what Claude wrote
@@ -240,9 +240,9 @@ Then add `from open_coach.tools import your_module` to `server.py` so `@mcp.tool
 
 For pure-computation logic, put the algorithm in a sibling top-level module (`src/open_coach/<algo>.py`), then keep `tools/<algo>.py` as a thin I/O wrapper. The pure module is testable without the MCP server.
 
-### Adding a coaching rule to `entraineur`
+### Adding a coaching rule to `coaching-rules`
 
-`.agents/skills/entraineur/SKILL.md` is the rule book. Sections are numbered (`## 1. …`, `## 2. …`, …). Add yours at the end, increment the count. If the rule comes from a specific incident, say so in the rule text with the date; the journal (`plans/training-journal.md`, private) is where the incident itself is recorded.
+`.agents/skills/coaching-rules/SKILL.md` is the rule book. Sections are numbered (`## 1. …`, `## 2. …`, …). Add yours at the end, increment the count. If the rule comes from a specific incident, say so in the rule text with the date; the journal (`plans/training-journal.md`, private) is where the incident itself is recorded.
 
 If your rule depends on athlete-specific data (e.g. "if HR cap is < 140 …"), make sure the rule reads it from `athlete-profile.md` at runtime — never hardcode.
 
@@ -256,11 +256,11 @@ If your rule depends on athlete-specific data (e.g. "if HR cap is < 140 …"), m
 
 Then add the name to `WORKFLOWS` and `GuideName` in `src/open_coach/guides.py` so the workflow is also served as an MCP prompt and through `get_coaching_guide` (`tests/test_llm_portability.py` checks it).
 
-The `description:` field is what Claude uses to decide whether to trigger this skill. Make it specific so it doesn't collide with `entraineur` (which triggers on rule/methodology terms) or other workflows.
+The `description:` field is what Claude uses to decide whether to trigger this skill. Make it specific so it doesn't collide with `coaching-rules` (which triggers on rule/methodology terms) or other workflows.
 
 The body of `SKILL.md` is instruction in natural language. It typically:
 1. Tells Claude what data to fetch (which MCP tools)
-2. References `entraineur` for the rules to apply
+2. References `coaching-rules` for the rules to apply
 3. Lays out the report format
 
 ### Adding pure-computation modules
@@ -297,7 +297,7 @@ A: Everything local. See `README` § "Privacy & data". No telemetry, no third-pa
 
 **Q: Does the coach speak English or French?**
 
-A: Both. Claude replies in the language you write in. Generated text (plan markdown, session descriptions) follows the `language` field of your profile (`"en"` by default, `"fr"` available), and the plan-description parser understands both (`incl.` / `dont`). The repo itself is in English; the methodology skill keeps its original name, `entraineur` ("coach" in French).
+A: Both. Claude replies in the language you write in. Generated text (plan markdown, session descriptions) follows the `language` field of your profile (`"en"` by default, `"fr"` available), and the plan-description parser understands both (`incl.` / `dont`). The repo itself is in English; skill and guide names are English too.
 
 **Q: How much Claude API / token cost does this generate?**
 
@@ -364,7 +364,7 @@ After this, `providers/garmin_auth.py` resumes from the token cache on every sta
 
 - Read [`AGENTS.md`](../AGENTS.md) for contributor-level architecture details, and [`mcp-clients.md`](mcp-clients.md) to use another MCP client.
 - Read [`CONTRIBUTING.md`](../CONTRIBUTING.md) for the data separation policy.
-- Browse [`.agents/skills/entraineur/SKILL.md`](../.agents/skills/entraineur/SKILL.md) to see the methodology rules.
+- Browse [`.agents/skills/coaching-rules/SKILL.md`](../.agents/skills/coaching-rules/SKILL.md) to see the methodology rules.
 - Browse [`.agents/skills/`](../.agents/skills/) to see each workflow's instructions.
 - Run `uv run pytest --co -q` to enumerate tests and spot-check coverage.
 

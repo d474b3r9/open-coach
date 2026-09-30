@@ -1,6 +1,6 @@
 # Anti-patterns + physical protocols
 
-Reference loaded by the `entraineur` skill for things to NEVER do and for specific strength / nutrition protocols.
+Reference loaded by the `coaching-rules` skill for things to NEVER do and for specific strength / nutrition protocols.
 
 ## Universal anti-patterns
 

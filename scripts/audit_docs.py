@@ -5,7 +5,7 @@ Checks performed:
 2. Consistency of the "X règles" / "X rules" rule-count claim between the
    frontmatter description and the number of "### Règle N" / "### Rule N"
    sections in memory files (French tokens kept for the author's memory)
-3. entraineur SKILL.md — continuous numbering of "## N. ..." sections
+3. coaching-rules SKILL.md — continuous numbering of "## N. ..." sections
 4. LEARNINGS.md — continuous numbering + recap table matches the sections
 5. Cross-references SKILL → LEARNINGS (cf #N) are all valid
 6. No personal-data leak (home paths, emails, Drive IDs, secrets) in versioned files
@@ -55,7 +55,7 @@ def _resolve_memory_dir() -> Path | None:
 
 
 MEMORY_DIR = _resolve_memory_dir()
-SKILL_FILE = REPO / ".agents" / "skills" / "entraineur" / "SKILL.md"
+SKILL_FILE = REPO / ".agents" / "skills" / "coaching-rules" / "SKILL.md"
 LEARNINGS_FILE = REPO / "LEARNINGS.md"
 
 
@@ -181,7 +181,7 @@ _SECTION_RE = re.compile(r"^##\s+(\d+)\.\s+", re.MULTILINE)
 
 
 def check_skill_numbering(audit: Audit) -> None:
-    utf8_print("\n--- Check 3: SKILL.md entraineur — continuous numbering ---")
+    utf8_print("\n--- Check 3: SKILL.md coaching-rules — continuous numbering ---")
 
     if not SKILL_FILE.exists():
         audit.err(f"SKILL.md not found: {SKILL_FILE}")

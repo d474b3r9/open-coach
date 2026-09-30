@@ -12,7 +12,7 @@
 - 8. Post-race recovery
 - 9. Safeguards (when to downgrade / cancel / re-target)
 
-Reference loaded by the `entraineur` skill when a methodology rule must be applied.
+Reference loaded by the `coaching-rules` skill when a methodology rule must be applied.
 
 ## 1. Daniels VDOT
 

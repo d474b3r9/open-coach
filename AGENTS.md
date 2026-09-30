@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Guidance for any AI agent working in this repository — Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot… — focused on the coaching operating rules, architecture, gotchas, and how to extend. Coaching domain rules live in the `entraineur` guide (`.agents/skills/entraineur/`, also served over MCP by `get_coaching_guide`); project policies live in `CONTRIBUTING.md`. `CLAUDE.md` imports this file and only adds Claude Code specifics.
+Guidance for any AI agent working in this repository — Claude Code, Codex, Cursor, Gemini CLI, GitHub Copilot… — focused on the coaching operating rules, architecture, gotchas, and how to extend. Coaching domain rules live in the `coaching-rules` guide (`.agents/skills/coaching-rules/`, also served over MCP by `get_coaching_guide`); project policies live in `CONTRIBUTING.md`. `CLAUDE.md` imports this file and only adds Claude Code specifics.
 
 **Portability rule**: this file only reaches agents that read `AGENTS.md`. Anything an agent *must* do while coaching also has to reach MCP-only clients (Claude Desktop, ChatGPT, …): put it in the server instructions (`src/open_coach/instructions.py`), in a tool's `next_steps` (`tools/_common.plan_update_next_steps`), or in a guide under `.agents/skills/`. See "Client portability" below.
 
@@ -214,11 +214,11 @@ Setup scripts and one-shot CLI helpers (`scripts/*.py`) run in cp1252 by default
 
 Guides are **Agent Skills** ([open standard](https://agentskills.io/specification)) in `.agents/skills/` — the cross-client location read natively by Codex, Gemini CLI, Cursor, Copilot; Claude Code reads them through the `.claude/skills` symlink. Every other client gets them over MCP (see "Client portability"). Two layers:
 
-- **`.agents/skills/entraineur/`** — coaching **methodology rules** (Daniels, 80/20, periodization, recovery, anti-patterns, DSL workout conventions). Sub-files in `references/` are loaded on demand (`get_coaching_guide("methodology" | "dsl-conventions" | "anti-patterns")`). **Does not pilot any MCP workflow.**
-- **`.agents/skills/{onboard, plan-training, push-workout, analyze-run, daily-check, race-ready}/`** — **MCP workflows** (procedural guides that call MCP tools), also exposed as MCP prompts of the same name. Each references `entraineur` for the rules to apply.
+- **`.agents/skills/coaching-rules/`** — coaching **methodology rules** (Daniels, 80/20, periodization, recovery, anti-patterns, DSL workout conventions). Sub-files in `references/` are loaded on demand (`get_coaching_guide("methodology" | "dsl-conventions" | "anti-patterns")`). **Does not pilot any MCP workflow.**
+- **`.agents/skills/{onboard, plan-training, push-workout, analyze-run, daily-check, race-ready}/`** — **MCP workflows** (procedural guides that call MCP tools), also exposed as MCP prompts of the same name. Each references `coaching-rules` for the rules to apply.
 - **`.agents/skills/extract-transcript/`** — repo maintenance skill (needs a shell), not served over MCP.
 
-Triggers are designed to be non-overlapping: `entraineur` triggers on rule/methodology terms; the workflow skills trigger on action verbs.
+Triggers are designed to be non-overlapping: `coaching-rules` triggers on rule/methodology terms; the workflow skills trigger on action verbs.
 
 Authoring rules (enforced by `tests/test_skills_spec.py`):
 - Frontmatter keys limited to the spec: `name` (= directory, lowercase-hyphen, ≤ 64), `description` (≤ 1024, no `<`/`>`), `license`, `compatibility`, `metadata` (string values, e.g. `version`), `allowed-tools`.

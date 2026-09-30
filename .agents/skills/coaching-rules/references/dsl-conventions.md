@@ -13,7 +13,7 @@
 - Example: easy run + strides
 - French / English equivalents
 
-Reference loaded by the `entraineur` skill when a `DSLWorkout` must be generated to push to the watch. Strict rules — empirically validated preferences (can be overridden in the athlete profile § "Preferences" if the athlete gives different feedback).
+Reference loaded by the `coaching-rules` skill when a `DSLWorkout` must be generated to push to the watch. Strict rules — empirically validated preferences (can be overridden in the athlete profile § "Preferences" if the athlete gives different feedback).
 
 This applies to every flow that pushes to Garmin: `build_and_push_workout`, `sync_upcoming_workouts`, ad-hoc scripts, `generate_training_plan`.
 
