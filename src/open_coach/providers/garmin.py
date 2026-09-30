@@ -94,7 +94,6 @@ def parse_garmin_personal_records(raw: Any) -> list[PersonalRecord]:
                 distance_label=label,
                 distance_m=distance_m,
                 time_s=float(time_s),
-                pace_sec_per_km=float(time_s) / (distance_m / 1000.0),
                 activity_id=int(activity_id),
                 date=pr_date,
                 source="platform_pr",

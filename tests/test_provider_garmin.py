@@ -148,7 +148,8 @@ def test_parse_personal_records() -> None:
     assert [(p.distance_label, p.activity_id) for p in prs] == [("5K", 1), ("marathon", 2)]
     five_k = prs[0]
     assert five_k.date == date(2024, 6, 20)
-    assert five_k.pace_sec_per_km == pytest.approx(1229.5 / 5)
+    assert five_k.time_s == pytest.approx(1229.5)
+    assert five_k.distance_m == 5000
     assert five_k.source == "platform_pr"
     assert prs[1].date.year == 2024
 

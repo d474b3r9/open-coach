@@ -10,25 +10,37 @@ from __future__ import annotations
 import json
 from datetime import date, datetime, timedelta
 
-from open_coach.models import AthleteProfile, GoalsConfig, TrainingGoal, TrainingPattern
+from open_coach.models import (
+    AthleteProfile,
+    GoalsConfig,
+    SportProfile,
+    TrainingGoal,
+    TrainingPattern,
+)
+from open_coach.sports.base import FitnessMarker
+from open_coach.sports.running import pace
 from open_coach.tools._common import load_profile_live
 from open_coach.tools.memory import get_coaching_context
 from open_coach.tools.race import get_race_predictions
 from tests.conftest import StubGarmin, mock_ctx
 
 STALE = AthleteProfile(
-    vdot=48.7,
     ctl=39.4,
     atl=43.1,
     tsb=-3.7,
     onboarding_complete=True,
-    training_pattern=TrainingPattern(
-        weekly_volume_km=34.0,
-        weekly_frequency=4.0,
-        long_run_avg_km=18.0,
-        easy_pace_avg_sec_per_km=329.0,
-        computed_at=datetime(2026, 5, 18, 13, 0),
-    ),
+    sports={
+        "running": SportProfile(
+            fitness=FitnessMarker(metric="vdot", value=48.7),
+            training_pattern=TrainingPattern(
+                weekly_distance_m=34_000.0,
+                weekly_frequency=4.0,
+                long_session_avg_distance_m=18_000.0,
+                easy_intensity=pace(329.0),
+                computed_at=datetime(2026, 5, 18, 13, 0),
+            ),
+        )
+    },
 )
 
 
@@ -82,7 +94,10 @@ async def test_race_predictions_use_todays_form(storage) -> None:
         GoalsConfig(
             goals=[
                 TrainingGoal(
-                    race_name="Test", distance_m=10000, race_date=date.today() + timedelta(weeks=8)
+                    sport="running",
+                    race_name="Test",
+                    distance_m=10000,
+                    race_date=date.today() + timedelta(weeks=8),
                 )
             ]
         )

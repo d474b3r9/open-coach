@@ -10,6 +10,7 @@ from open_coach.race_predictor import (
     predict_race_times,
 )
 from open_coach.server import mcp
+from open_coach.sports.running import vdot_of
 from open_coach.tools._common import load_profile_live
 from open_coach.vdot import format_pace, format_time, predict_time
 
@@ -28,7 +29,8 @@ async def get_race_predictions(goal_index: int = 0, ctx: Context | None = None) 
     storage = ctx.lifespan_context["storage"]
 
     profile = await load_profile_live(ctx)
-    if profile is None or profile.vdot is None:
+    vdot = vdot_of(profile)
+    if profile is None or vdot is None:
         return {"error": "No VDOT available. Run onboarding or enter a race result first."}
 
     goals = storage.load_goals()
@@ -40,7 +42,7 @@ async def get_race_predictions(goal_index: int = 0, ctx: Context | None = None) 
         goal_label = goal.race_name
 
     predictions = predict_race_times(
-        vdot=profile.vdot,
+        vdot=vdot,
         ctl=profile.ctl,
         tsb=profile.tsb,
         target_distance_m=target_m,
@@ -63,7 +65,7 @@ async def get_race_predictions(goal_index: int = 0, ctx: Context | None = None) 
         tsb_desc = f"{profile.tsb:+.0f}"
 
     return {
-        "vdot": round(profile.vdot, 1),
+        "vdot": round(vdot, 1),
         "goal": goal_label,
         "fitness_context": {
             "ctl": round(profile.ctl, 1) if profile.ctl else None,
@@ -90,7 +92,8 @@ async def get_pacing_strategy(
     storage = ctx.lifespan_context["storage"]
 
     profile = await load_profile_live(ctx)
-    if profile is None or profile.vdot is None:
+    vdot = vdot_of(profile)
+    if profile is None or vdot is None:
         return {"error": "No VDOT available. Run onboarding or enter a race result first."}
 
     goals = storage.load_goals()
@@ -100,7 +103,7 @@ async def get_pacing_strategy(
     goal = goals.goals[goal_index]
 
     # Use target time if set, otherwise predict from VDOT
-    target_time = goal.target_time_s or predict_time(profile.vdot, goal.distance_m)
+    target_time = goal.target_time_s or predict_time(vdot, goal.distance_m)
 
     pacing = build_pacing_strategy(goal.distance_m, target_time, strategy)
 

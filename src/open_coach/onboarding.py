@@ -13,8 +13,11 @@ from open_coach.models import (
     ActivitySummary,
     AthleteProfile,
     PersonalRecord,
+    SportProfile,
     TrainingPattern,
 )
+from open_coach.sports.base import FitnessMarker
+from open_coach.sports.running import RUNNING, VDOT_METRIC, avg_pace_sec_per_km, pace
 from open_coach.training_load import calculate_load_series, calculate_tss
 from open_coach.vdot import HALF_MARATHON_M, MARATHON_M, calculate_vdot
 
@@ -77,14 +80,12 @@ def detect_personal_records(activities: list[ActivitySummary]) -> list[PersonalR
 
         # Fastest = lowest pace
         best = min(candidates, key=lambda a: a.duration_s / a.distance_m)
-        pace = best.duration_s / best.distance_m * 1000  # sec/km
 
         prs.append(
             PersonalRecord(
                 distance_label=label,
                 distance_m=best.distance_m,
                 time_s=best.duration_s,
-                pace_sec_per_km=pace,
                 activity_id=best.activity_id,
                 date=best.date,
                 source="detected",
@@ -149,33 +150,31 @@ def analyze_training_patterns(
         return None
 
     weeks = window_days / 7
-    total_km = sum(a.distance_m / 1000 for a in recent)
-    weekly_volume = total_km / weeks
+    weekly_distance = sum(a.distance_m for a in recent) / weeks
+    weekly_duration = sum(a.duration_s for a in recent) / weeks
     weekly_freq = len(recent) / weeks
 
     # Long runs: top 20% by distance
     sorted_by_dist = sorted(recent, key=lambda a: a.distance_m, reverse=True)
     long_runs = sorted_by_dist[: max(1, len(sorted_by_dist) // 5)]
-    long_run_avg = sum(a.distance_m / 1000 for a in long_runs) / len(long_runs)
+    long_run_avg = sum(a.distance_m for a in long_runs) / len(long_runs)
+    long_run_dur = sum(a.duration_s for a in long_runs) / len(long_runs)
 
     # Easy pace: median of runs with pace > 5:00/km
-    easy_runs = [
-        a for a in recent if a.avg_pace_sec_per_km is not None and a.avg_pace_sec_per_km > 300
-    ]
-    if easy_runs:
-        paces = sorted(
-            a.avg_pace_sec_per_km for a in easy_runs if a.avg_pace_sec_per_km is not None
-        )
-        easy_pace = paces[len(paces) // 2]
+    all_paces = [p for a in recent if (p := avg_pace_sec_per_km(a.duration_s, a.distance_m))]
+    easy_paces = sorted(p for p in all_paces if p > 300)
+    if easy_paces:
+        easy_pace = easy_paces[len(easy_paces) // 2]
     else:
-        paces_all = [a.avg_pace_sec_per_km for a in recent if a.avg_pace_sec_per_km]
-        easy_pace = sum(paces_all) / len(paces_all) if paces_all else 360.0
+        easy_pace = sum(all_paces) / len(all_paces) if all_paces else 360.0
 
     return TrainingPattern(
-        weekly_volume_km=round(weekly_volume, 1),
+        weekly_distance_m=round(weekly_distance, -2),
+        weekly_duration_s=round(weekly_duration, 0),
         weekly_frequency=round(weekly_freq, 1),
-        long_run_avg_km=round(long_run_avg, 1),
-        easy_pace_avg_sec_per_km=round(easy_pace, 0),
+        long_session_avg_distance_m=round(long_run_avg, -2),
+        long_session_avg_duration_s=round(long_run_dur, 0),
+        easy_intensity=pace(round(easy_pace, 0)),
         analysis_window_days=window_days,
         computed_at=datetime.now(),
     )
@@ -240,11 +239,13 @@ def build_profile_from_activities(
     pattern = analyze_training_patterns(activities)
     ctl, atl, tsb = compute_training_load(activities)
 
+    running = SportProfile(personal_records=prs, training_pattern=pattern)
+    if vdot:
+        running.fitness = FitnessMarker(
+            metric=VDOT_METRIC, value=round(vdot, 1), source=vdot_source
+        )
     return AthleteProfile(
-        vdot=round(vdot, 1) if vdot else None,
-        vdot_source=vdot_source,
-        personal_records=prs,
-        training_pattern=pattern,
+        sports={RUNNING: running},
         ctl=ctl,
         atl=atl,
         tsb=tsb,

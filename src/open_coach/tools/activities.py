@@ -8,8 +8,8 @@ from datetime import date, timedelta
 from fastmcp import Context
 
 from open_coach.server import mcp
+from open_coach.sports.running import avg_pace_sec_per_km
 from open_coach.tools._common import (
-    avg_pace_sec_per_km,
     compact_payload,
     get_watch,
     watch_error,

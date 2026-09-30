@@ -20,6 +20,7 @@ from open_coach.models import (
     RecoverySignal,
     WorkoutFeedback,
 )
+from open_coach.sports.running import vdot_of
 from open_coach.vdot import format_pace, training_paces
 
 # ── Signal weights ──
@@ -462,8 +463,8 @@ def recommend_adaptation(
 
     # Get easy pace for substitution suggestions
     easy_pace_str = ""
-    if profile and profile.vdot:
-        paces = training_paces(profile.vdot)
+    if vdot := vdot_of(profile):
+        paces = training_paces(vdot)
         easy_fast, easy_slow = paces["easy"]
         easy_pace_str = f"{format_pace(easy_fast)}-{format_pace(easy_slow)}/km"
 
@@ -513,8 +514,8 @@ def recommend_adaptation(
 
     if wtype in ("tempo", "intervals"):
         adjusted = f"Easy{f' at {easy_pace_str}' if easy_pace_str else ' run'}"
-        if planned_workout.target_distance_km:
-            adjusted += f" — {planned_workout.target_distance_km:.0f}km"
+        if planned_workout.target_distance_m:
+            adjusted += f" — {planned_workout.target_distance_m / 1000:.0f}km"
         return AdaptiveRecommendation(
             action="reduce_intensity",
             reasoning=(
@@ -528,11 +529,12 @@ def recommend_adaptation(
 
     if wtype == "long_run":
         reduced_km = None
-        if planned_workout.target_distance_km:
-            reduced_km = round(planned_workout.target_distance_km * 0.8, 1)
+        planned_km = (planned_workout.target_distance_m or 0) / 1000
+        if planned_km:
+            reduced_km = round(planned_km * 0.8, 1)
         adjusted = "Long run"
         if reduced_km:
-            adjusted += f" {reduced_km}km (reduced from {planned_workout.target_distance_km:.0f}km)"
+            adjusted += f" {reduced_km}km (reduced from {planned_km:.0f}km)"
         if easy_pace_str:
             adjusted += f" at {easy_pace_str}"
         return AdaptiveRecommendation(

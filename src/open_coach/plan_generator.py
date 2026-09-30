@@ -6,7 +6,7 @@ Pure computation — no I/O. Entry point: generate_plan().
 from __future__ import annotations
 
 from datetime import date, datetime, timedelta
-from typing import Literal
+from typing import Any, Literal
 
 from open_coach.i18n import DEFAULT_LANGUAGE, t
 from open_coach.models import (
@@ -17,6 +17,8 @@ from open_coach.models import (
     TrainingPlan,
     TrainingWeek,
 )
+from open_coach.sports.base import Volume
+from open_coach.sports.running import pace
 from open_coach.vdot import format_pace, predict_time, training_paces
 
 # Weekday name → index (Monday = 0)
@@ -200,6 +202,15 @@ def _cap_steady_run(
     return dist, dur
 
 
+def _targets(km: float, minutes: float, pace_sec_per_km: float) -> dict[str, Any]:
+    """PlannedWorkout target fields from a distance in km, minutes and a pace."""
+    return {
+        "target_distance_m": round(km * 1000, 1),
+        "target_duration_s": minutes * 60,
+        "target_intensity": pace(pace_sec_per_km),
+    }
+
+
 def _make_workout(
     workout_date: date,
     role: str,
@@ -223,9 +234,7 @@ def _make_workout(
             date=workout_date,
             workout_type="long_run",
             description=t("wo.long_run", lang, km=dist, pace=_fmt_pace(easy_pace)),
-            target_distance_km=dist,
-            target_duration_min=dur,
-            target_pace_sec_per_km=easy_pace,
+            **_targets(dist, dur, easy_pace),
         )
 
     if role == "easy":
@@ -235,9 +244,7 @@ def _make_workout(
             date=workout_date,
             workout_type="easy",
             description=t("wo.easy", lang, km=dist, pace=_fmt_pace(easy_pace)),
-            target_distance_km=dist,
-            target_duration_min=dur,
-            target_pace_sec_per_km=easy_pace,
+            **_targets(dist, dur, easy_pace),
         )
 
     if role == "recovery_jog":
@@ -247,9 +254,7 @@ def _make_workout(
             date=workout_date,
             workout_type="recovery",
             description=t("wo.recovery", lang, km=dist),
-            target_distance_km=dist,
-            target_duration_min=dur,
-            target_pace_sec_per_km=easy_pace,
+            **_targets(dist, dur, easy_pace),
         )
 
     if role == "tempo":
@@ -269,9 +274,7 @@ def _make_workout(
             date=workout_date,
             workout_type="tempo",
             description=t("wo.tempo", lang, total=dist, km=tempo_km, pace=_fmt_pace(thresh_pace)),
-            target_distance_km=dist,
-            target_duration_min=dur,
-            target_pace_sec_per_km=thresh_pace,
+            **_targets(dist, dur, thresh_pace),
         )
 
     if role == "intervals":
@@ -298,9 +301,7 @@ def _make_workout(
             date=workout_date,
             workout_type="intervals",
             description=t("wo.intervals", lang, reps=n_reps, pace=_fmt_pace(interval_pace)),
-            target_distance_km=dist,
-            target_duration_min=dur,
-            target_pace_sec_per_km=interval_pace,
+            **_targets(dist, dur, interval_pace),
         )
 
     # Fallback
@@ -310,9 +311,7 @@ def _make_workout(
         date=workout_date,
         workout_type="easy",
         description=t("wo.fallback", lang, km=dist),
-        target_distance_km=dist,
-        target_duration_min=dur,
-        target_pace_sec_per_km=easy_pace,
+        **_targets(dist, dur, easy_pace),
     )
 
 
@@ -337,9 +336,7 @@ def _race_week_workouts(
             km=race_km,
             pace=_fmt_pace(race_pace),
         ),
-        target_distance_km=round(race_km, 1),
-        target_duration_min=round(race_time_s / 60, 0),
-        target_pace_sec_per_km=race_pace,
+        **_targets(round(race_km, 1), round(race_time_s / 60, 0), race_pace),
     )
     return [w for w in workouts if w.date < goal.race_date] + [race]
 
@@ -418,13 +415,13 @@ def generate_plan(
 
         if week_start <= goal.race_date < week_start + timedelta(days=7):
             workouts = _race_week_workouts(workouts, goal, vdot, lang)
-            target_km = round(sum(w.target_distance_km or 0.0 for w in workouts), 1)
+            target_km = round(sum(w.target_distance_m or 0.0 for w in workouts) / 1000, 1)
 
         weeks.append(
             TrainingWeek(
                 week_number=i + 1,
                 start_date=week_start,
-                planned_volume_km=target_km,
+                planned_volume={goal.sport: Volume(distance_m=round(target_km * 1000, 1))},
                 workouts=workouts,
                 notes=week_type,
             )

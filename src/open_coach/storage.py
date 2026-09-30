@@ -1,7 +1,9 @@
 """Persistent storage for athlete data in ~/.open-coach/.
 
-All data is stored as JSON files. Each top-level model includes a schema_version
-field for future migration support.
+All data is stored as JSON files. Each top-level model carries a schema_version:
+files written by an older version are upgraded by ``migrations.migrate`` on read,
+saved back in the current schema, and the original is kept once as
+``<file>.v<N>.bak``.
 """
 
 from __future__ import annotations
@@ -10,6 +12,9 @@ import json
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
+from pydantic import BaseModel
+
+from open_coach.migrations import Kind, migrate
 from open_coach.models import (
     ActivityCache,
     ActivitySummary,
@@ -26,6 +31,26 @@ from open_coach.paths import DATA_DIR, migrate_legacy_data_dir
 from open_coach.plan_renderer import _slugify
 
 DEFAULT_COACH_DIR = DATA_DIR
+
+
+def _load[M: BaseModel](path: Path, kind: Kind, model: type[M]) -> M:
+    """Read *path*, migrate it to the current schema, validate it as *model*.
+
+    A migrated file is written back in the current schema; the original text is
+    kept as ``<file>.v<N>.bak`` (first migration only, never overwritten).
+    """
+    raw = path.read_text()
+    data = json.loads(raw)
+    if kind == "activity_cache" and isinstance(data, list):  # legacy pre-envelope format
+        data = {"schema_version": 1, "activities": data}
+    data, from_version = migrate(kind, data)
+    obj = model.model_validate(data)
+    if from_version is not None:
+        backup = path.with_name(f"{path.name}.v{from_version}.bak")
+        if not backup.exists():
+            backup.write_text(raw)
+        path.write_text(obj.model_dump_json(indent=2))
+    return obj
 
 
 class CoachStorage:
@@ -53,7 +78,7 @@ class CoachStorage:
         path = self.base_dir / "profile.json"
         if not path.exists():
             return None
-        return AthleteProfile.model_validate_json(path.read_text())
+        return _load(path, "profile", AthleteProfile)
 
     def save_profile(self, profile: AthleteProfile) -> None:
         """Persist the athlete profile (stamps updated_at)."""
@@ -68,7 +93,7 @@ class CoachStorage:
         path = self.base_dir / "goals.json"
         if not path.exists():
             return None
-        return GoalsConfig.model_validate_json(path.read_text())
+        return _load(path, "goals", GoalsConfig)
 
     def save_goals(self, goals: GoalsConfig) -> None:
         """Persist the goals config (stamps updated_at)."""
@@ -108,7 +133,7 @@ class CoachStorage:
         path = self._feedback_path(quarter)
         if not path.exists():
             return FeedbackLog(period=quarter)
-        return FeedbackLog.model_validate_json(path.read_text())
+        return _load(path, "feedback", FeedbackLog)
 
     def append_feedback(self, entry: WorkoutFeedback) -> None:
         """Append one feedback entry to the current quarter's log."""
@@ -125,7 +150,7 @@ class CoachStorage:
         path = self.base_dir / "plans" / "active.json"
         if not path.exists():
             return None
-        return TrainingPlan.model_validate_json(path.read_text())
+        return _load(path, "plan", TrainingPlan)
 
     def save_plan(self, plan: TrainingPlan) -> str | None:
         """Save as the active plan.
@@ -206,7 +231,7 @@ class CoachStorage:
         path = self.base_dir / "plans" / "archive" / f"{name}.json"
         if not path.exists():
             return None
-        return TrainingPlan.model_validate_json(path.read_text())
+        return _load(path, "plan", TrainingPlan)
 
     # ── Activity cache ──
 
@@ -215,10 +240,7 @@ class CoachStorage:
         path = self.base_dir / "activity_cache" / "summary.json"
         if not path.exists():
             return []
-        data = json.loads(path.read_text())
-        if isinstance(data, list):  # legacy pre-envelope format
-            return [ActivitySummary.model_validate(item) for item in data]
-        return ActivityCache.model_validate(data).activities
+        return _load(path, "activity_cache", ActivityCache).activities
 
     def save_activity_cache(self, activities: list[ActivitySummary]) -> None:
         """Persist activity summaries in a versioned envelope."""

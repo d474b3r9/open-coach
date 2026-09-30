@@ -13,6 +13,7 @@ from open_coach.models import (
     TrainingZones,
     ZoneInfo,
 )
+from open_coach.sports.running import RUNNING, avg_pace_sec_per_km
 from open_coach.vdot import training_paces
 
 
@@ -109,11 +110,13 @@ def estimate_resting_hr(activities: list[ActivitySummary]) -> int | None:
     # Filter for easy/long runs (> 30 min, pace > 5:00/km = 300 sec/km)
     easy_hrs = []
     for a in activities:
+        pace = avg_pace_sec_per_km(a.duration_s, a.distance_m)
         if (
-            a.avg_hr is not None
+            a.sport == RUNNING
+            and a.avg_hr is not None
             and a.duration_s > 1800
-            and a.avg_pace_sec_per_km is not None
-            and a.avg_pace_sec_per_km > 300
+            and pace is not None
+            and pace > 300
         ):
             easy_hrs.append(a.avg_hr)
 

@@ -12,12 +12,15 @@ from __future__ import annotations
 import logging
 import re
 import unicodedata
+from collections.abc import Callable
 from pathlib import Path
 
 from open_coach.i18n import DEFAULT_LANGUAGE, day_abbreviation, label, t
 from open_coach.models import Language, PlannedWorkout, TrainingPlan, TrainingWeek
 from open_coach.paths import env
-from open_coach.vdot import format_pace, format_time
+from open_coach.sports.base import SportKey, Volume
+from open_coach.sports.registry import get_sport
+from open_coach.vdot import format_time
 
 logger = logging.getLogger(__name__)
 
@@ -34,12 +37,27 @@ def _slugify(name: str) -> str:
     return s or "plan"
 
 
-def _fmt_pace(sec_per_km: float | None) -> str:
-    if sec_per_km is None:
-        return "-"
-    # round() before formatting preserves the historical rounding behaviour
-    # (format_pace itself truncates).
-    return f"{format_pace(round(sec_per_km))}/km"
+def volume_headline(sport: SportKey, vol: Volume) -> float:
+    """The sport's headline volume number: km, or hours for duration-based sports."""
+    if get_sport(sport).volume_metric == "distance":
+        return vol.distance_m / 1000
+    return vol.duration_s / 3600
+
+
+def _fmt_headline(sport: SportKey, value: float) -> str:
+    if get_sport(sport).volume_metric == "distance":
+        return f"{value:.0f} km"
+    hours, minutes = divmod(round(value * 60), 60)
+    return f"{hours}h{minutes:02d}"
+
+
+def format_volume(volumes: dict[SportKey, Volume], default: SportKey) -> str:
+    """One week's volume, e.g. ``42 km``; one part per sport for a multi-sport week."""
+    items = volumes or {default: Volume()}
+    parts = [_fmt_headline(s, volume_headline(s, v)) for s, v in items.items()]
+    if len(parts) > 1:
+        parts = [f"{p} {s}" for p, s in zip(parts, items, strict=True)]
+    return " + ".join(parts)
 
 
 def count_phases(plan: TrainingPlan) -> dict[str, int]:
@@ -51,17 +69,17 @@ def count_phases(plan: TrainingPlan) -> dict[str, int]:
     return counts
 
 
-def _fmt_workout_row(w: PlannedWorkout, lang: Language) -> str:
+def _fmt_workout_row(w: PlannedWorkout, sport: SportKey, lang: Language) -> str:
     day = day_abbreviation(w.date.weekday(), lang)
-    dist = f"{w.target_distance_km:.1f} km" if w.target_distance_km else "-"
-    pace = _fmt_pace(w.target_pace_sec_per_km)
+    dist = f"{w.target_distance_m / 1000:.1f} km" if w.target_distance_m else "-"
+    target = get_sport(sport).format_intensity(w.target_intensity) if w.target_intensity else "-"
     status = "✓" if w.completed else ("✗" if w.skipped_reason else " ")
     wtype = label("workout_type", w.workout_type, lang)
     desc = (w.description or wtype).replace("|", "\\|")
-    return f"| {status} | {day} {w.date} | **{wtype}** | {dist} | {pace} | {desc} |"
+    return f"| {status} | {day} {w.date} | **{wtype}** | {dist} | {target} | {desc} |"
 
 
-def _fmt_week_section(week: TrainingWeek, lang: Language) -> str:
+def _fmt_week_section(plan: TrainingPlan, week: TrainingWeek, lang: Language) -> str:
     phase = label("phase", week.notes or "base", lang).upper()
     header = t(
         "md.week_header",
@@ -69,11 +87,16 @@ def _fmt_week_section(week: TrainingWeek, lang: Language) -> str:
         n=week.week_number,
         phase=phase,
         start=week.start_date,
-        km=week.planned_volume_km,
+        vol=format_volume(week.planned_volume, plan.goal.sport),
     )
     if week.completion_rate > 0:
-        header += t("md.week_done", lang, km=week.actual_volume_km, rate=week.completion_rate * 100)
-    rows = "\n".join(_fmt_workout_row(w, lang) for w in week.workouts)
+        header += t(
+            "md.week_done",
+            lang,
+            vol=format_volume(week.actual_volume, plan.goal.sport),
+            rate=week.completion_rate * 100,
+        )
+    rows = "\n".join(_fmt_workout_row(w, plan.sport_of(w), lang) for w in week.workouts)
     table = t("md.table_header", lang) + rows
     return f"{header}\n\n{table}\n"
 
@@ -86,10 +109,15 @@ def render_plan_to_markdown(plan: TrainingPlan, lang: Language = DEFAULT_LANGUAG
         t("md.target_time", lang, time=format_time(g.target_time_s)) if g.target_time_s else ""
     )
 
-    volumes = [w.planned_volume_km for w in plan.weeks]
-    peak_km = max(volumes) if volumes else 0
-    start_km = volumes[0] if volumes else 0
-    total_km = sum(volumes)
+    sports = list(dict.fromkeys(s for w in plan.weeks for s in w.planned_volume)) or [g.sport]
+    per_sport = {
+        s: [volume_headline(s, w.planned_volume.get(s, Volume())) for w in plan.weeks]
+        for s in sports
+    }
+
+    def _join(pick: Callable[[list[float]], float]) -> str:
+        parts = [(s, _fmt_headline(s, pick(v) if v else 0)) for s, v in per_sport.items()]
+        return " + ".join(f"{txt} {s}" if len(parts) > 1 else txt for s, txt in parts)
 
     phases_str = ", ".join(
         f"{n}× {label('phase', ph, lang)}"  # noqa: RUF001
@@ -115,8 +143,8 @@ def render_plan_to_markdown(plan: TrainingPlan, lang: Language = DEFAULT_LANGUAG
         t("md.overview", lang),
         "",
         t("md.period", lang, start=plan.start_date, end=plan.end_date),
-        t("md.weeks_total", lang, weeks=len(plan.weeks), km=total_km),
-        t("md.volume", lang, start=start_km, peak=peak_km),
+        t("md.weeks_total", lang, weeks=len(plan.weeks), vol=_join(sum)),
+        t("md.volume", lang, start=_join(lambda v: v[0]), peak=_join(max)),
         t("md.phases", lang, phases=phases_str),
         t("md.status", lang, status=label("status", plan.status, lang)),
         "",
@@ -126,7 +154,7 @@ def render_plan_to_markdown(plan: TrainingPlan, lang: Language = DEFAULT_LANGUAG
         parts += [t("md.outcome_notes", lang), "", plan.outcome_notes, ""]
 
     parts.append(t("md.detailed_plan", lang))
-    parts.extend(_fmt_week_section(w, lang) for w in plan.weeks)
+    parts.extend(_fmt_week_section(plan, w, lang) for w in plan.weeks)
 
     parts.append("---")
     if plan.updated_at:

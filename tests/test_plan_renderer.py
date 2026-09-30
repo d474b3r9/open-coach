@@ -18,6 +18,8 @@ from open_coach.plan_renderer import (
     render_plan_to_markdown,
     write_plan_markdown,
 )
+from open_coach.sports.base import Volume
+from open_coach.sports.running import pace
 
 
 def _make_plan(name: str = "Test 10K Plan") -> TrainingPlan:
@@ -26,15 +28,15 @@ def _make_plan(name: str = "Test 10K Plan") -> TrainingPlan:
         TrainingWeek(
             week_number=1,
             start_date=start,
-            planned_volume_km=40.0,
+            planned_volume={"running": Volume(distance_m=40000.0)},
             notes="base",
             workouts=[
                 PlannedWorkout(
                     date=start,
                     workout_type="easy",
                     description="Footing tranquille",
-                    target_distance_km=8.0,
-                    target_pace_sec_per_km=330.0,
+                    target_distance_m=8000.0,
+                    target_intensity=pace(330.0),
                 ),
             ],
         ),
@@ -44,6 +46,7 @@ def _make_plan(name: str = "Test 10K Plan") -> TrainingPlan:
     return TrainingPlan(
         name=name,
         goal=TrainingGoal(
+            sport="running",
             race_name="Test Race",
             distance_m=10000,
             race_date=date(2026, 4, 26),
@@ -90,7 +93,7 @@ def test_render_defaults_to_english() -> None:
     assert "- Date: **2026-04-26** — target 40:00" in md
     assert "### Wk 1 — BASE (2026-03-02)" in md
     assert "km planned" in md
-    assert "| ✓ | Day | Type | Distance | Pace | Details |" in md
+    assert "| ✓ | Day | Type | Distance | Target | Details |" in md
     assert "| Mon 2026-03-02 | **easy** |" in md
     assert "## Detailed plan" in md
     # English keeps the raw internal values

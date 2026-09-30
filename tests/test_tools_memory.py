@@ -5,8 +5,9 @@ from __future__ import annotations
 from datetime import date, datetime, timedelta
 from pathlib import Path
 
-from open_coach.models import AthleteProfile, WorkoutRegistry, WorkoutUpload
+from open_coach.models import WorkoutRegistry, WorkoutUpload
 from open_coach.plan_renderer import plan_markdown_path, write_plan_markdown
+from open_coach.sports.running import vdot_of
 from open_coach.tools.memory import (
     archive_active_plan,
     bootstrap_athlete_profile,
@@ -19,7 +20,7 @@ from open_coach.tools.memory import (
     set_training_goal,
     update_athlete_profile,
 )
-from tests.conftest import StubGarmin, make_plan, make_planned_workout, mock_ctx
+from tests.conftest import StubGarmin, make_plan, make_planned_workout, mock_ctx, running_profile
 
 # ── bootstrap_athlete_profile ────────────────────────────────────────────────
 
@@ -31,7 +32,7 @@ class TestBootstrapAthleteProfile:
         assert "error" in result
 
     async def test_already_complete_short_circuits(self, storage):
-        storage.save_profile(AthleteProfile(vdot=50.0, onboarding_complete=True))
+        storage.save_profile(running_profile(vdot=50.0, onboarding_complete=True))
         garmin = StubGarmin()
         ctx = mock_ctx(storage=storage, garmin=garmin)
         result = await bootstrap_athlete_profile(ctx=ctx)
@@ -107,20 +108,22 @@ class TestUpdateAthleteProfile:
         assert profile.resting_hr == 46
 
     async def test_only_provided_fields_change(self, storage):
-        storage.save_profile(AthleteProfile(vdot=48.0, max_hr=190))
+        storage.save_profile(running_profile(vdot=48.0, max_hr=190))
         ctx = mock_ctx(storage=storage)
         await update_athlete_profile(weight_kg=71.5, ctx=ctx)
         profile = storage.load_profile()
         assert profile.weight_kg == 71.5
         assert profile.max_hr == 190
-        assert profile.vdot == 48.0
+        assert vdot_of(profile) == 48.0
 
     async def test_vdot_override_sets_source(self, storage):
         ctx = mock_ctx(storage=storage)
         await update_athlete_profile(vdot_override=52.3, ctx=ctx)
         profile = storage.load_profile()
-        assert profile.vdot == 52.3
-        assert profile.vdot_source == "manual override"
+        assert vdot_of(profile) == 52.3
+        fitness = profile.sport_profile("running").fitness
+        assert fitness is not None
+        assert fitness.source == "manual override"
 
     async def test_language_defaults_to_en_and_can_be_set(self, storage):
         ctx = mock_ctx(storage=storage)
@@ -327,16 +330,17 @@ class TestRecordWorkoutFeedback:
         ctx = mock_ctx(storage=storage, garmin=garmin)
         result = await record_workout_feedback(activity_id=42, ctx=ctx)
         entry = result["entry"]
-        assert entry["actual_distance_km"] == 10.0
+        assert entry["actual_distance_m"] == 10_000.0
+        assert entry["actual_duration_s"] == 3000.0
         assert entry["avg_hr"] == 155
-        assert entry["actual_pace_sec_per_km"] == 300.0
+        assert entry["actual_intensity"] == {"kind": "pace_sec_per_km", "value": 300.0}
 
     async def test_garmin_failure_is_soft(self, storage):
         garmin = StubGarmin(get_activity=RuntimeError("api down"))
         ctx = mock_ctx(storage=storage, garmin=garmin)
         result = await record_workout_feedback(activity_id=42, feeling="tired", ctx=ctx)
         assert result["status"] == "feedback_recorded"
-        assert result["entry"]["actual_distance_km"] is None
+        assert result["entry"]["actual_distance_m"] is None
 
     async def test_no_garmin_client_still_records(self, storage):
         ctx = mock_ctx(storage=storage, garmin=None)
@@ -354,11 +358,11 @@ class TestRecordWorkoutFeedback:
     async def test_planned_targets_autofilled_from_active_plan(self, storage):
         storage.save_plan(self._plan_with_todays_tempo())
         ctx = mock_ctx(storage=storage)
-        # workout_type left at its default ("easy") → inherited from the plan
+        # workout_type left unset → inherited from the plan
         result = await record_workout_feedback(feeling="good", ctx=ctx)
         entry = result["entry"]
-        assert entry["planned_distance_km"] == 8.0
-        assert entry["planned_pace_sec_per_km"] == 270.0
+        assert entry["planned_distance_m"] == 8000.0
+        assert entry["planned_intensity"] == {"kind": "pace_sec_per_km", "value": 270.0}
         assert entry["workout_type"] == "tempo"
 
     async def test_explicit_workout_type_not_overridden_by_plan(self, storage):
@@ -367,14 +371,14 @@ class TestRecordWorkoutFeedback:
         result = await record_workout_feedback(workout_type="intervals", ctx=ctx)
         entry = result["entry"]
         assert entry["workout_type"] == "intervals"
-        assert entry["planned_distance_km"] == 8.0  # targets still auto-filled
+        assert entry["planned_distance_m"] == 8000.0  # targets still auto-filled
 
     async def test_no_active_plan_leaves_planned_fields_none(self, storage):
         ctx = mock_ctx(storage=storage)
         result = await record_workout_feedback(feeling="good", ctx=ctx)
         entry = result["entry"]
-        assert entry["planned_distance_km"] is None
-        assert entry["planned_pace_sec_per_km"] is None
+        assert entry["planned_distance_m"] is None
+        assert entry["planned_intensity"] is None
         assert entry["workout_type"] == "easy"
 
     async def test_non_matching_date_leaves_planned_fields_none(self, storage):
@@ -386,8 +390,8 @@ class TestRecordWorkoutFeedback:
         ctx = mock_ctx(storage=storage)
         result = await record_workout_feedback(feeling="good", ctx=ctx)  # today
         entry = result["entry"]
-        assert entry["planned_distance_km"] is None
-        assert entry["planned_pace_sec_per_km"] is None
+        assert entry["planned_distance_m"] is None
+        assert entry["planned_intensity"] is None
         assert entry["workout_type"] == "easy"
 
 

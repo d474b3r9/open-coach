@@ -17,7 +17,6 @@ from fastmcp import Context
 from pydantic import ValidationError
 
 from open_coach.tools._common import (
-    avg_pace_sec_per_km,
     get_watch,
     invalid_date_error,
     parse_iso_date,
@@ -45,6 +44,8 @@ from open_coach.models import (
 from open_coach.onboarding import build_profile_from_activities
 from open_coach.plan_renderer import delete_plan_markdown, write_plan_markdown
 from open_coach.server import mcp
+from open_coach.sports.base import SportKey
+from open_coach.sports.running import RUNNING, avg_pace_sec_per_km, pace, set_vdot, vdot_of
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +77,9 @@ async def _training_load_block(ctx: Context, storage: CoachStorage, today: date)
     if profile is not None and profile.ctl is not None:
         # Bootstrap writes the load and the training pattern together; the
         # profile's updated_at moves on any save and says nothing about the load.
-        pattern = profile.training_pattern
+        pattern = next(
+            (sp.training_pattern for sp in profile.sports.values() if sp.training_pattern), None
+        )
         return {
             "ctl": profile.ctl,
             "atl": profile.atl,
@@ -306,8 +309,8 @@ async def bootstrap_athlete_profile(ctx: Context | None = None) -> dict:
     if existing and existing.onboarding_complete:
         return {
             "status": "already_complete",
-            "vdot": existing.vdot,
-            "prs": len(existing.personal_records),
+            "vdot": vdot_of(existing),
+            "prs": len(existing.sport_profile(RUNNING).personal_records),
         }
 
     # Fetch 6 months of activities
@@ -323,11 +326,11 @@ async def bootstrap_athlete_profile(ctx: Context | None = None) -> dict:
                 ActivitySummary(
                     activity_id=a.activity_id or 0,
                     date=date.fromisoformat(a.start_time_local[:10]),
+                    sport=RUNNING,
                     distance_m=dist,
                     duration_s=dur,
                     avg_hr=round(a.avg_hr) if a.avg_hr is not None else None,
                     max_hr=round(a.max_hr) if a.max_hr is not None else None,
-                    avg_pace_sec_per_km=avg_pace_sec_per_km(dur, dist),
                     name=a.name,
                 )
             )
@@ -359,12 +362,13 @@ async def bootstrap_athlete_profile(ctx: Context | None = None) -> dict:
     storage.save_profile(profile)
     storage.save_activity_cache(activities)
 
+    running = profile.sport_profile(RUNNING)
     return {
         "status": "complete",
         "activities_scanned": len(activities),
-        "prs_detected": len(profile.personal_records),
-        "vdot": profile.vdot,
-        "vdot_source": profile.vdot_source,
+        "prs_detected": len(running.personal_records),
+        "vdot": vdot_of(profile),
+        "vdot_source": running.fitness.source if running.fitness else None,
         "ctl": profile.ctl,
         "atl": profile.atl,
         "tsb": profile.tsb,
@@ -401,8 +405,7 @@ async def update_athlete_profile(
     if weight_kg is not None:
         profile.weight_kg = weight_kg
     if vdot_override is not None:
-        profile.vdot = vdot_override
-        profile.vdot_source = "manual override"
+        set_vdot(profile, vdot_override, "manual override")
     if language is not None:
         profile.language = language
 
@@ -415,6 +418,7 @@ async def set_training_goal(
     race_name: str,
     distance_m: float,
     race_date: str | None = None,
+    sport: SportKey = "running",
     target_time_s: float | None = None,
     priority: Literal["A", "B", "C"] = "A",
     ctx: Context | None = None,
@@ -431,6 +435,7 @@ async def set_training_goal(
     goals = storage.load_goals() or GoalsConfig()
 
     goal = TrainingGoal(
+        sport=sport,
         race_name=race_name,
         distance_m=distance_m,
         race_date=parsed_race_date,
@@ -531,7 +536,7 @@ async def resolve_injury(body_part: str, ctx: Context | None = None) -> dict:
 async def record_workout_feedback(
     activity_id: int | None = None,
     feedback_date: str | None = None,
-    workout_type: str = "easy",
+    workout_type: str | None = None,
     perceived_effort: Literal["too_easy", "easy", "moderate", "hard", "too_hard"] | None = None,
     feeling: Literal["great", "good", "okay", "tired", "terrible"] | None = None,
     notes: str | None = None,
@@ -541,7 +546,8 @@ async def record_workout_feedback(
 
     If activity_id is provided, objective data is auto-filled from the watch platform.
     If the active plan has a workout on the same date, its targets
-    (distance, pace, type) are auto-filled for planned-vs-actual tracking.
+    (sport, distance, intensity, type) are auto-filled for planned-vs-actual
+    tracking; ``workout_type`` defaults to the planned one, else ``easy``.
     """
     assert ctx is not None
     storage = ctx.lifespan_context["storage"]
@@ -550,10 +556,18 @@ async def record_workout_feedback(
     if entry_date is None:
         return invalid_date_error("feedback_date", feedback_date or "")
 
+    plan = storage.load_active_plan()
+    planned = (
+        next((w for week in plan.weeks for w in week.workouts if w.date == entry_date), None)
+        if plan
+        else None
+    )
+
     entry = WorkoutFeedback(
         activity_id=activity_id,
         date=entry_date,
-        workout_type=workout_type,
+        sport=plan.sport_of(planned) if plan and planned else None,
+        workout_type=workout_type or (planned.workout_type if planned else "easy"),
         perceived_effort=perceived_effort,
         feeling=feeling,
         notes=notes,
@@ -566,25 +580,19 @@ async def record_workout_feedback(
         if watch:
             try:
                 detail = await watch.activity_detail(activity_id)
-                entry.actual_distance_km = detail.distance_m / 1000
+                entry.actual_distance_m = detail.distance_m
+                entry.actual_duration_s = detail.duration_s
                 entry.avg_hr = round(detail.avg_hr) if detail.avg_hr is not None else None
-                entry.actual_pace_sec_per_km = avg_pace_sec_per_km(
-                    detail.duration_s, detail.distance_m
+                entry.actual_intensity = pace(
+                    avg_pace_sec_per_km(detail.duration_s, detail.distance_m)
                 )
             except Exception as err:
                 logger.debug("Activity detail fetch failed for %s: %s", activity_id, err)
 
-    # Auto-fill planned targets from the active plan (same date)
-    plan = storage.load_active_plan()
-    if plan:
-        planned = next(
-            (w for week in plan.weeks for w in week.workouts if w.date == entry.date), None
-        )
-        if planned:
-            entry.planned_distance_km = planned.target_distance_km
-            entry.planned_pace_sec_per_km = planned.target_pace_sec_per_km
-            if workout_type == "easy":  # caller left the default
-                entry.workout_type = planned.workout_type
+    # Planned targets from the active plan (same date)
+    if planned:
+        entry.planned_distance_m = planned.target_distance_m
+        entry.planned_intensity = planned.target_intensity
 
     storage.append_feedback(entry)
     return {"status": "feedback_recorded", "entry": entry.model_dump(mode="json")}

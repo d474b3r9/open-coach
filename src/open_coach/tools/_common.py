@@ -200,13 +200,6 @@ async def load_profile_live(ctx: Context) -> AthleteProfile | None:
     return profile.model_copy(update={"ctl": p.ctl, "atl": p.atl, "tsb": p.tsb})
 
 
-def avg_pace_sec_per_km(duration_s: float, distance_m: float) -> float | None:
-    """Average pace in sec/km, or None when the distance is zero/invalid."""
-    if distance_m <= 0:
-        return None
-    return duration_s / (distance_m / 1000.0)
-
-
 async def upload_and_register(watch: WatchProvider, storage: CoachStorage, dsl: DSLWorkout) -> int:
     """Upload a workout to the watch platform and record it in the local registry."""
     from open_coach.models import WorkoutUpload

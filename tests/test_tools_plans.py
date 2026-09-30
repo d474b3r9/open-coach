@@ -21,7 +21,7 @@ from open_coach.tools.plans import (
     update_workout_completion,
 )
 from open_coach.workout_dsl import RepeatBlock
-from tests.conftest import StubGarmin, make_plan, make_planned_workout, mock_ctx
+from tests.conftest import StubGarmin, make_plan, make_planned_workout, mock_ctx, running_profile
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -37,8 +37,9 @@ def _plan_with_workouts(workouts):
 
 
 def _seed_profile_and_goal(storage, race_offset_weeks=12):
-    storage.save_profile(AthleteProfile(vdot=48.0, ctl=40.0, onboarding_complete=True))
+    storage.save_profile(running_profile(vdot=48.0, ctl=40.0, onboarding_complete=True))
     goal = TrainingGoal(
+        sport="running",
         race_name="Autumn 10K",
         distance_m=10000,
         race_date=date.today() + timedelta(weeks=race_offset_weeks),
@@ -113,7 +114,7 @@ class TestGenerateTrainingPlan:
         assert "error" in result
 
     async def test_no_goals_returns_error(self, storage):
-        storage.save_profile(AthleteProfile(vdot=48.0))
+        storage.save_profile(running_profile(vdot=48.0))
         ctx = mock_ctx(storage=storage)
         result = await generate_training_plan(ctx=ctx)
         assert "error" in result
@@ -125,8 +126,8 @@ class TestGenerateTrainingPlan:
         assert "error" in result
 
     async def test_goal_without_race_date_returns_error(self, storage):
-        storage.save_profile(AthleteProfile(vdot=48.0))
-        storage.save_goals(GoalsConfig(goals=[TrainingGoal(distance_m=10000)]))
+        storage.save_profile(running_profile(vdot=48.0))
+        storage.save_goals(GoalsConfig(goals=[TrainingGoal(sport="running", distance_m=10000)]))
         ctx = mock_ctx(storage=storage)
         result = await generate_training_plan(ctx=ctx)
         assert "error" in result
@@ -145,12 +146,18 @@ class TestGenerateTrainingPlan:
 
         assert result["status"] == "plan_generated"
         assert result["weeks"] > 0
-        assert result["peak_volume_km"] >= result["start_volume_km"] > 0
+        assert result["start_volume"].endswith(" km")
+        assert result["peak_volume"].endswith(" km")
+        start_km = float(result["start_volume"].removesuffix(" km"))
+        peak_km = float(result["peak_volume"].removesuffix(" km"))
+        assert peak_km >= start_km > 0
         assert result["phases"]  # at least one phase bucket
 
         saved = storage.load_active_plan()
         assert saved is not None
         assert saved.name == result["name"]
+        volumes = [w.planned_volume["running"].distance_m for w in saved.weeks]
+        assert max(volumes) >= volumes[0] > 0
 
         # Markdown copy lands in the env-overridden tmp dir (see conftest)
         assert result["markdown_copy"] is not None
@@ -162,6 +169,7 @@ class TestGenerateTrainingPlan:
         goals = storage.load_goals()
         goals.goals.append(
             TrainingGoal(
+                sport="running",
                 race_name="Spring 5K",
                 distance_m=5000,
                 race_date=date.today() + timedelta(weeks=6),
@@ -279,7 +287,7 @@ class TestSyncUpcomingWorkouts:
 
     async def test_easy_runs_are_not_pushed_by_default(self, storage):
         # Project rule: easy runs are run on feel, no watch workout for them.
-        storage.save_profile(AthleteProfile(vdot=48.7, onboarding_complete=True))
+        storage.save_profile(running_profile(vdot=48.7, onboarding_complete=True))
         easy = _workout(offset_days=1)
         plain_long = _workout(offset_days=2, wtype="long_run", dist=18.0)
         long_with_m = _workout(
@@ -358,7 +366,7 @@ class TestSyncUpcomingWorkouts:
         assert "build_and_push_workout" in result["hint"]
 
     async def test_zone_letter_resolved_from_profile_vdot(self, storage):
-        storage.save_profile(AthleteProfile(vdot=48.7, onboarding_complete=True))
+        storage.save_profile(running_profile(vdot=48.7, onboarding_complete=True))
         w = _workout(
             offset_days=1,
             wtype="tempo",
@@ -437,7 +445,7 @@ class TestUpdateWorkoutCompletion:
         storage.save_plan(_plan_with_workouts([run, rest]))
         ctx = mock_ctx(storage=storage)
         result = await update_workout_completion(
-            week_number=1, workout_date=run.date.isoformat(), actual_distance_km=8.0, ctx=ctx
+            week_number=1, workout_date=run.date.isoformat(), actual_distance_m=8000.0, ctx=ctx
         )
         assert result["week_completion_rate"] == 1.0
 
@@ -452,7 +460,7 @@ class TestUpdateWorkoutCompletion:
             workout_date=w1.date.isoformat(),
             completed=True,
             activity_id=777,
-            actual_distance_km=8.4,
+            actual_distance_m=8400.0,
             ctx=ctx,
         )
         assert result["status"] == "updated"
@@ -463,8 +471,8 @@ class TestUpdateWorkoutCompletion:
         done = next(w for w in week.workouts if w.date == w1.date)
         assert done.completed is True
         assert done.actual_activity_id == 777
-        assert done.actual_distance_km == 8.4
-        assert week.actual_volume_km == 8.4
+        assert done.actual_distance_m == 8400.0
+        assert week.actual_volume["running"].distance_m == 8400.0
 
     async def test_marks_skipped_with_reason(self, storage):
         w = _workout(offset_days=0)

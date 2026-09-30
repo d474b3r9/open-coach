@@ -14,6 +14,7 @@ from open_coach.plan_generator import (
     _volume_for_week,
     generate_plan,
 )
+from open_coach.sports.running import pace_of
 from tests.conftest import NEXT_MONDAY, make_goal
 
 LANGUAGES: tuple[Language, ...] = ("en", "fr")
@@ -202,13 +203,13 @@ class TestGeneratePlan:
         race = last_week.workouts[-1]
         assert race.workout_type == "race"
         assert race.date == race_date
-        assert race.target_distance_km == 10.0
-        assert race.target_pace_sec_per_km == pytest.approx(252.0)
+        assert race.target_distance_m == 10_000.0
+        assert pace_of(race.target_intensity) == pytest.approx(252.0)
         all_workouts = [w for week in plan.weeks for w in week.workouts]
         assert all(w.date <= race_date for w in all_workouts)
         assert [w for w in all_workouts if w.workout_type == "race"] == [race]
-        assert last_week.planned_volume_km == pytest.approx(
-            sum(w.target_distance_km or 0 for w in last_week.workouts)
+        assert last_week.planned_volume["running"].distance_m == pytest.approx(
+            sum(w.target_distance_m or 0 for w in last_week.workouts)
         )
 
     @pytest.mark.parametrize("lang", LANGUAGES)
@@ -248,7 +249,7 @@ class TestGeneratePlan:
             else:
                 work = blocks[0].steps[0]
                 assert work.duration.distance_m is not None
-                assert work.duration.distance_m < (w.target_distance_km or 0) * 1000
+                assert work.duration.distance_m < (w.target_distance_m or 0)
 
     def test_short_horizon_has_no_week_after_the_race(self):
         # Regression: a race 20 days out was padded to 4 weeks, so week 4
@@ -275,8 +276,9 @@ class TestGeneratePlan:
         )
         race = plan.weeks[-1].workouts[-1]
         assert race.workout_type == "race"
-        assert race.target_pace_sec_per_km is not None
-        assert 240 < race.target_pace_sec_per_km < 270  # VDOT 48 10K ~ 4:15/km
+        race_pace = pace_of(race.target_intensity)
+        assert race_pace is not None
+        assert 240 < race_pace < 270  # VDOT 48 10K ~ 4:15/km
 
     def test_plan_start_and_end_dates(self):
         goal = make_goal(42_195, weeks_ahead=16)
@@ -343,8 +345,9 @@ class TestGeneratePlan:
             goal, vdot=42.0, current_weekly_km=start_km, constraints=c, start_date=NEXT_MONDAY
         )
         for week in plan.weeks:
-            assert week.planned_volume_km <= start_km * 1.65, (
-                f"Week {week.week_number}: {week.planned_volume_km}km > 165% of {start_km}km"
+            week_km = week.planned_volume["running"].distance_m / 1000
+            assert week_km <= start_km * 1.65, (
+                f"Week {week.week_number}: {week_km}km > 165% of {start_km}km"
             )
 
     def test_week_numbers_sequential(self):
@@ -370,7 +373,7 @@ class TestGeneratePlan:
         assert len(restored.weeks) == len(plan.weeks)
 
     def test_missing_race_date_raises(self):
-        goal = TrainingGoal(race_name="Test", distance_m=10_000, race_date=None)
+        goal = TrainingGoal(sport="running", race_name="Test", distance_m=10_000, race_date=None)
         c = _constraints()
         with pytest.raises(ValueError, match="race_date"):
             generate_plan(
@@ -381,7 +384,9 @@ class TestGeneratePlan:
         # Race on the Monday two weeks out: weeks 1-2, then the race week.
         # This used to be padded to 4 weeks, i.e. a whole week after the race.
         race_date = NEXT_MONDAY + timedelta(weeks=2)
-        goal = TrainingGoal(race_name="Sprint", distance_m=5_000, race_date=race_date)
+        goal = TrainingGoal(
+            sport="running", race_name="Sprint", distance_m=5_000, race_date=race_date
+        )
         c = _constraints()
         plan = generate_plan(
             goal, vdot=45.0, current_weekly_km=30.0, constraints=c, start_date=NEXT_MONDAY
@@ -412,9 +417,9 @@ class TestDurationCaps:
         weekday_workouts = [w for week in plan.weeks for w in week.workouts if w.date.weekday() < 5]
         assert weekday_workouts
         for w in weekday_workouts:
-            assert w.target_duration_min is not None
-            assert w.target_duration_min <= 60, (
-                f"{w.date} {w.workout_type}: {w.target_duration_min}min > 60min cap"
+            assert w.target_duration_s is not None
+            assert w.target_duration_s <= 60 * 60, (
+                f"{w.date} {w.workout_type}: {w.target_duration_s / 60}min > 60min cap"
             )
 
     def test_weekday_sessions_exceed_60_without_cap(self):
@@ -422,12 +427,12 @@ class TestDurationCaps:
         c = _constraints(available_days=["monday", "tuesday", "wednesday", "thursday", "sunday"])
         plan = self._capped_plan(c)
         durations = [
-            w.target_duration_min or 0.0
+            w.target_duration_s or 0.0
             for week in plan.weeks
             for w in week.workouts
             if w.date.weekday() < 5
         ]
-        assert max(durations) > 60
+        assert max(durations) > 60 * 60
 
     def test_weekend_cap_respected_for_long_run(self):
         c = _constraints(max_weekend_minutes=120)  # default days: Mon/Wed/Fri/Sun
@@ -435,19 +440,19 @@ class TestDurationCaps:
         sunday_workouts = [w for week in plan.weeks for w in week.workouts if w.date.weekday() == 6]
         assert any(w.workout_type == "long_run" for w in sunday_workouts)
         for w in sunday_workouts:
-            assert w.target_duration_min is not None
-            assert w.target_duration_min <= 120
+            assert w.target_duration_s is not None
+            assert w.target_duration_s <= 120 * 60
 
     def test_long_run_exceeds_120_without_cap(self):
         # Regression guard: no caps → the long run is allowed past 2 hours
         plan = self._capped_plan(_constraints())
         long_run_durations = [
-            w.target_duration_min or 0.0
+            w.target_duration_s or 0.0
             for week in plan.weeks
             for w in week.workouts
             if w.workout_type == "long_run"
         ]
-        assert max(long_run_durations) > 120
+        assert max(long_run_durations) > 120 * 60
 
     def test_intervals_keep_at_least_3_reps_under_tight_cap(self):
         import re
