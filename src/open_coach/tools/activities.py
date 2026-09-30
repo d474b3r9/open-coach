@@ -8,7 +8,8 @@ from datetime import date, timedelta
 from fastmcp import Context
 
 from open_coach.server import mcp
-from open_coach.sports.running import avg_pace_sec_per_km
+from open_coach.sports.base import ActivitySport
+from open_coach.sports.running import RUNNING, avg_pace_sec_per_km
 from open_coach.tools._common import (
     compact_payload,
     get_watch,
@@ -19,12 +20,21 @@ logger = logging.getLogger(__name__)
 
 
 @mcp.tool(annotations={"readOnlyHint": True})
-async def get_recent_runs(days: int = 30, limit: int = 20, ctx: Context | None = None) -> dict:
-    """Get recent running activities from the watch platform.
+async def get_recent_activities(
+    days: int = 30,
+    limit: int = 20,
+    sport: ActivitySport | None = None,
+    ctx: Context | None = None,
+) -> dict:
+    """Get recent activities from the watch platform, every sport by default.
+
+    Each activity carries ``sport`` (a coached sport, or ``other``) and
+    ``vendor_type`` (the platform's own type, e.g. ``trail_running``).
 
     Args:
         days: Number of days to look back (default 30).
         limit: Maximum number of activities to return (default 20).
+        sport: Only this sport (e.g. ``running``, or ``other``); None = all.
 
     Returns:
         {"activities": [...], "count": int} or {"error": str}.
@@ -34,23 +44,27 @@ async def get_recent_runs(days: int = 30, limit: int = 20, ctx: Context | None =
     if watch is None:
         return watch_error()
 
-    runs = await watch.list_runs(date.today() - timedelta(days=days), date.today())
+    activities = await watch.list_activities(date.today() - timedelta(days=days), date.today())
+    if sport is not None:
+        activities = [a for a in activities if a.sport == sport]
     results = []
-    for a in runs[:limit]:
-        results.append(
-            {
-                "activity_id": a.activity_id,
-                "name": a.name,
-                "date": a.start_time_local,
-                "distance_m": a.distance_m,
-                "duration_s": a.duration_s,
-                "avg_hr": a.avg_hr,
-                "max_hr": a.max_hr,
-                "avg_pace_sec_per_km": avg_pace_sec_per_km(a.duration_s, a.distance_m),
-                "elevation_gain_m": a.elevation_gain_m,
-                "calories": a.calories,
-            }
-        )
+    for a in activities[:limit]:
+        row = {
+            "activity_id": a.activity_id,
+            "sport": a.sport,
+            "vendor_type": a.vendor_type,
+            "name": a.name,
+            "date": a.start_time_local,
+            "distance_m": a.distance_m,
+            "duration_s": a.duration_s,
+            "avg_hr": a.avg_hr,
+            "max_hr": a.max_hr,
+            "elevation_gain_m": a.elevation_gain_m,
+            "calories": a.calories,
+        }
+        if a.sport == RUNNING:
+            row["avg_pace_sec_per_km"] = avg_pace_sec_per_km(a.duration_s, a.distance_m)
+        results.append(row)
     return {"activities": results, "count": len(results)}
 
 
@@ -74,6 +88,7 @@ async def get_activity_details(
 
     result = {
         "activity_id": activity_id,
+        "sport": detail.sport,
         "summary": detail.summary,
         "splits": detail.splits,
     }

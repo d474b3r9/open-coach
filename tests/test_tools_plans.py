@@ -269,7 +269,7 @@ class TestSyncUpcomingWorkouts:
         plan = _plan_with_workouts([_workout(offset_days=1)])
         storage.save_plan(plan)
         garmin = StubGarmin(
-            upload_running_workout={"workoutId": 111},
+            upload_workout={"workoutId": 111},
             schedule_workout={"workoutScheduleId": 222},
         )
         ctx = mock_ctx(storage=storage, garmin=garmin)
@@ -299,7 +299,7 @@ class TestSyncUpcomingWorkouts:
         )
         storage.save_plan(_plan_with_workouts([easy, plain_long, long_with_m]))
         garmin = StubGarmin(
-            upload_running_workout={"workoutId": 111},
+            upload_workout={"workoutId": 111},
             schedule_workout={"workoutScheduleId": 222},
         )
         result = await sync_upcoming_workouts(ctx=mock_ctx(storage=storage, garmin=garmin))
@@ -312,7 +312,7 @@ class TestSyncUpcomingWorkouts:
     async def test_include_easy_pushes_easy_runs(self, storage):
         storage.save_plan(_plan_with_workouts([_workout(offset_days=1)]))
         garmin = StubGarmin(
-            upload_running_workout={"workoutId": 111},
+            upload_workout={"workoutId": 111},
             schedule_workout={"workoutScheduleId": 222},
         )
         result = await sync_upcoming_workouts(
@@ -376,35 +376,35 @@ class TestSyncUpcomingWorkouts:
         )
         storage.save_plan(_plan_with_workouts([w]))
         garmin = StubGarmin(
-            upload_running_workout={"workoutId": 111},
+            upload_workout={"workoutId": 111},
             schedule_workout={"workoutScheduleId": 222},
         )
         ctx = mock_ctx(storage=storage, garmin=garmin)
         result = await sync_upcoming_workouts(ctx=ctx)
         assert result["uploaded"] == 1
-        payload = next(c for c in garmin.calls if c[0] == "upload_running_workout")[1][0]
-        steps = payload.workoutSegments[0].workoutSteps
+        payload = next(c for c in garmin.calls if c[0] == "upload_workout")[1][0]
+        steps = payload["workoutSegments"][0]["workoutSteps"]  # raw upload dict
         # lap warmup, 30-min M block, lap cooldown (+ auto lap finish dedup → none added)
-        assert steps[0].endCondition["conditionTypeKey"] == "lap.button"
-        assert steps[-1].endCondition["conditionTypeKey"] == "lap.button"
+        assert steps[0]["endCondition"]["conditionTypeKey"] == "lap.button"
+        assert steps[-1]["endCondition"]["conditionTypeKey"] == "lap.button"
         block = steps[1]
-        assert block.workoutSteps[0].endConditionValue == 1800
+        assert block["workoutSteps"][0]["endConditionValue"] == 1800
 
     async def test_rate_limit_stops_early(self, storage):
         plan = _plan_with_workouts([_workout(offset_days=1), _workout(offset_days=2)])
         storage.save_plan(plan)
-        garmin = StubGarmin(upload_running_workout=RuntimeError("429 Too Many Requests"))
+        garmin = StubGarmin(upload_workout=RuntimeError("429 Too Many Requests"))
         ctx = mock_ctx(storage=storage, garmin=garmin)
         result = await sync_upcoming_workouts(include_easy=True, ctx=ctx)
         assert result["status"] == "rate_limited"
         assert result["uploaded"] == 0
         assert result["errors"][0]["error"] == "rate_limited"
         # Stopped after the first failure — second workout not attempted
-        assert len([c for c in garmin.calls if c[0] == "upload_running_workout"]) == 1
+        assert len([c for c in garmin.calls if c[0] == "upload_workout"]) == 1
 
     async def test_generic_error_is_partial(self, storage):
         storage.save_plan(_plan_with_workouts([_workout(offset_days=1)]))
-        garmin = StubGarmin(upload_running_workout=RuntimeError("server exploded"))
+        garmin = StubGarmin(upload_workout=RuntimeError("server exploded"))
         ctx = mock_ctx(storage=storage, garmin=garmin)
         result = await sync_upcoming_workouts(include_easy=True, ctx=ctx)
         assert result["status"] == "partial"

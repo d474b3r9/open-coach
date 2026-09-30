@@ -46,6 +46,7 @@ class TestBootstrapAthleteProfile:
             get_activities_by_date=[
                 {
                     "activityId": 101,
+                    "activityType": {"typeKey": "running"},
                     "startTimeLocal": f"{run_date} 08:00:00",
                     "distance": 5000.0,
                     "duration": 1500.0,
@@ -53,11 +54,20 @@ class TestBootstrapAthleteProfile:
                     "maxHR": 182.0,
                     "activityName": "Morning 5K",
                 },
-                {  # zero-distance entry must be skipped
+                {  # zero-distance run must be skipped
                     "activityId": 102,
+                    "activityType": {"typeKey": "running"},
                     "startTimeLocal": f"{run_date} 18:00:00",
                     "distance": 0,
                     "duration": 600,
+                },
+                {  # distance-less session of another sport still loads
+                    "activityId": 103,
+                    "activityType": {"typeKey": "strength_training"},
+                    "startTimeLocal": f"{run_date} 19:00:00",
+                    "distance": 0,
+                    "duration": 1800,
+                    "averageHR": 110.0,
                 },
             ],
             get_heart_rates={"restingHeartRate": 47},
@@ -66,7 +76,7 @@ class TestBootstrapAthleteProfile:
         result = await bootstrap_athlete_profile(ctx=ctx)
 
         assert result["status"] == "complete"
-        assert result["activities_scanned"] == 1
+        assert result["activities_scanned"] == 2  # the run + the strength session
         assert result["vdot"] is not None
         assert 30 < result["vdot"] < 45  # a 25:00 5K sits around VDOT 38
         assert result["resting_hr"] == 47
@@ -74,7 +84,7 @@ class TestBootstrapAthleteProfile:
         profile = storage.load_profile()
         assert profile is not None
         assert profile.onboarding_complete is True
-        assert len(storage.load_activity_cache()) == 1
+        assert [a.sport for a in storage.load_activity_cache()] == ["running", "other"]
 
     async def test_resting_hr_fetch_failure_falls_back(self, storage):
         run_date = (date.today() - timedelta(days=5)).isoformat()
@@ -116,9 +126,9 @@ class TestUpdateAthleteProfile:
         assert profile.max_hr == 190
         assert vdot_of(profile) == 48.0
 
-    async def test_vdot_override_sets_source(self, storage):
+    async def test_fitness_override_sets_source(self, storage):
         ctx = mock_ctx(storage=storage)
-        await update_athlete_profile(vdot_override=52.3, ctx=ctx)
+        await update_athlete_profile(fitness_override=52.3, sport="running", ctx=ctx)
         profile = storage.load_profile()
         assert vdot_of(profile) == 52.3
         fitness = profile.sport_profile("running").fitness
@@ -325,7 +335,10 @@ class TestRecordWorkoutFeedback:
 
     async def test_autofill_from_garmin(self, storage):
         garmin = StubGarmin(
-            get_activity={"summaryDTO": {"distance": 10000.0, "duration": 3000.0, "averageHR": 155}}
+            get_activity={
+                "summaryDTO": {"distance": 10000.0, "duration": 3000.0, "averageHR": 155},
+                "activityTypeDTO": {"typeKey": "running"},
+            }
         )
         ctx = mock_ctx(storage=storage, garmin=garmin)
         result = await record_workout_feedback(activity_id=42, ctx=ctx)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Literal
 
-from open_coach.sports.base import FitnessMarker, Intensity, SportKey
+from open_coach.sports.base import FitnessMarker, Intensity, SportKey, TargetKind
 from open_coach.vdot import format_pace
 
 if TYPE_CHECKING:
@@ -16,11 +16,14 @@ VDOT_METRIC = "vdot"
 
 class RunningSport:
     key: SportKey = RUNNING
+    fitness_metric = VDOT_METRIC
     volume_metric: Literal["distance", "duration"] = "distance"
     workout_types = frozenset(
         {"easy", "long_run", "recovery", "tempo", "interval", "intervals", "fartlek", "race"}
     )
     quality_types = frozenset({"tempo", "interval", "intervals", "fartlek"})
+    target_kinds: frozenset[TargetKind] = frozenset({"pace", "heart_rate"})
+    default_speed_mps = 1000 / 300  # 5:00/km
 
     def format_intensity(self, intensity: Intensity) -> str:
         if intensity.kind == "pace_sec_per_km":

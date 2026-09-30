@@ -14,7 +14,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple
 
 from open_coach.paths import env
 from open_coach.plan_renderer import delete_plan_markdown
-from open_coach.training_load import calculate_load_series, daily_tss_from_runs
+from open_coach.training_load import calculate_load_series, daily_tss_from_activities
 
 if TYPE_CHECKING:
     from fastmcp import Context
@@ -149,18 +149,20 @@ LOAD_WINDOW_DAYS = 180
 
 
 class LoadSnapshot(NamedTuple):
-    point: TrainingLoadPoint | None  # None when no run carried heart-rate data
-    runs_count: int
+    point: TrainingLoadPoint | None  # None when no activity carried heart-rate data
+    activities_count: int
     threshold_hr: float
 
 
 async def training_load_as_of(
     watch: WatchProvider, storage: CoachStorage, as_of: date, days: int = LOAD_WINDOW_DAYS
 ) -> LoadSnapshot:
-    """CTL / ATL / TSB on *as_of*, from the last *days* of runs.
+    """CTL / ATL / TSB on *as_of*, from the last *days* of activities, every sport.
 
-    Rest days since the last run count as zero-TSS days, so the fatigue of an
-    old session is not reported as current.
+    hrTSS only needs duration and heart rate, so cycling, swimming or any other
+    session loads the athlete like a run does. Rest days since the last session
+    count as zero-TSS days, so the fatigue of an old session is not reported as
+    current.
     """
     from datetime import timedelta
 
@@ -168,12 +170,12 @@ async def training_load_as_of(
     threshold_hr = (
         profile.threshold_hr if profile and profile.threshold_hr else DEFAULT_THRESHOLD_HR
     )
-    runs = await watch.list_runs(as_of - timedelta(days=days), as_of)
-    daily = daily_tss_from_runs(
-        [(r.start_time_local, r.duration_s, r.avg_hr) for r in runs], threshold_hr
+    activities = await watch.list_activities(as_of - timedelta(days=days), as_of)
+    daily = daily_tss_from_activities(
+        [(a.start_time_local, a.duration_s, a.avg_hr) for a in activities], threshold_hr
     )
     series = calculate_load_series(sorted(daily.items()), end_date=as_of)
-    return LoadSnapshot(series[-1] if series else None, len(runs), threshold_hr)
+    return LoadSnapshot(series[-1] if series else None, len(activities), threshold_hr)
 
 
 async def load_profile_live(ctx: Context) -> AthleteProfile | None:

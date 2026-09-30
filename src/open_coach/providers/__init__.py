@@ -18,10 +18,10 @@ from types import ModuleType
 
 from open_coach.paths import env
 from open_coach.providers.base import (
+    Activity,
     ActivityDetail,
     DailyHeartRate,
     RecoverySignals,
-    RunActivity,
     WatchProvider,
     WatchWorkout,
 )
@@ -36,10 +36,10 @@ DEFAULT_WATCH = "garmin"
 __all__ = [
     "DEFAULT_WATCH",
     "SUPPORTED_WATCHES",
+    "Activity",
     "ActivityDetail",
     "DailyHeartRate",
     "RecoverySignals",
-    "RunActivity",
     "WatchProvider",
     "WatchWorkout",
     "configured_watch",

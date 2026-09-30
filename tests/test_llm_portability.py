@@ -199,7 +199,11 @@ def test_object_or_string_input_validates():
     adapter: TypeAdapter[TrainingPlan | str] = TypeAdapter(TrainingPlan | str)
     assert isinstance(adapter.validate_python(plan.model_dump(mode="json")), TrainingPlan)
     assert isinstance(adapter.validate_python(plan.model_dump_json()), str)
-    workout = {"name": "W", "steps": [{"type": "warmup", "duration": {"seconds": 600}}]}
+    workout = {
+        "sport": "running",
+        "name": "W",
+        "steps": [{"type": "warmup", "duration": {"seconds": 600}}],
+    }
     assert isinstance(TypeAdapter(DSLWorkout | str).validate_python(workout), DSLWorkout)
 
 

@@ -22,10 +22,10 @@ This applies to every flow that pushes to Garmin: `build_and_push_workout`, `syn
 A plain easy run (easy, recovery, basic endurance) must be **a single `repeat count=1` containing a distance-based `interval`** with a pace target. No warmup, no timed cooldown — **only** the final `lap_button` step required by Rule D (added automatically by the builder).
 
 ```json
-{"name": "Easy run 7 km <pace> HR<<bpm>>", "steps": [
+{"sport": "running", "name": "Easy run 7 km <pace> HR<<bpm>>", "steps": [
   {"type": "repeat", "count": 1, "steps": [
     {"type": "interval", "duration": {"distance_m": 7000},
-     "pace": {"min_sec_per_km": 330, "max_sec_per_km": 350}}
+     "target": {"kind": "pace", "min_sec_per_km": 330, "max_sec_per_km": 350}}
   ]}
 ]}
 ```
@@ -52,7 +52,7 @@ Every warmup of a real session (intervals, threshold, VO2max, fartlek, strides, 
 
 For **every structured pace block** (easy run with a target, fartlek, threshold, M-pace, etc.), widen the DSL `PaceTarget` window by **±5 sec/km** around the coaching target. Garmin then gives an audible alert if the athlete leaves the widened zone (without beeping constantly at the slightest deviation). The workout **NAME** keeps the strict coaching target (e.g. *"4:20-4:25"*) for visibility; the ±5 s tolerance is implicit in the Garmin window.
 
-**Exception**: **strides = `pace: None` (no_target)**. Run "relaxed, almost sprinting" by feel. Over 15-80 m, GPS accuracy is too low for useful alerts.
+**Exception**: **strides = `target: None` (no_target)**. Run "relaxed, almost sprinting" by feel. Over 15-80 m, GPS accuracy is too low for useful alerts.
 
 ## Rule D — End of session = ALWAYS a lap press (never an automatic end)
 
@@ -60,7 +60,7 @@ For **every structured pace block** (easy run with a target, fartlek, threshold,
 
 - Quality session with a timed `cd 10'`: the `cooldown lap_button` **is added after** the timed cooldown (2 cooldown steps, Garmin accepts it).
 - 1-block easy run (Rule A): distance-based block **then** `cooldown lap_button`.
-- **The watch provider's builder (Garmin: `providers/garmin_workout.build_running_workout`) adds this step automatically** if the DSL does not already end with a `lap_button`. Do not duplicate it by hand, but never rely on it for a DSL written by hand outside the builder.
+- **The watch provider's builder (Garmin: `providers/garmin_workout.build_workout`) adds this step automatically** if the DSL does not already end with a `lap_button`. Do not duplicate it by hand, but never rely on it for a DSL written by hand outside the builder.
 
 **Why**: explicit athlete preference (2026-09-11). An automatic end cuts the watch in the middle of the way home or prevents extending; the lap press is the only reliable end signal.
 
@@ -90,10 +90,10 @@ Session types never pushed: `rest` and `strength` (canonical type for strength /
 ## Example: easy run + strides
 
 ```json
-{"name": "Thu — Easy ~7 km/40 min then 4×80m strides (lap at the track)", "steps": [
+{"sport": "running", "name": "Thu — Easy ~7 km/40 min then 4×80m strides (lap at the track)", "steps": [
   {"type": "warmup", "duration": {"lap_button": true}},
   {"type": "repeat", "count": 4, "steps": [
-    {"type": "interval", "duration": {"distance_m": 80}, "pace": null},
+    {"type": "interval", "duration": {"distance_m": 80}, "target": null},
     {"type": "recovery", "duration": {"seconds": 60}}
   ]},
   {"type": "cooldown", "duration": {"lap_button": true}}

@@ -16,21 +16,23 @@ from open_coach.workout_dsl import (
     parse_dsl,
 )
 
+_RUN_SPEED = 1000 / 300  # running default speed, 5:00/km
+
 # ── Duration ──────────────────────────────────────────────────────────────────
 
 
 class TestDuration:
     def test_seconds(self):
         d = Duration(seconds=600)
-        assert d.estimated_seconds == 600
+        assert d.estimated_seconds(_RUN_SPEED) == 600
 
     def test_distance(self):
         d = Duration(distance_m=5000)
-        assert d.estimated_seconds == pytest.approx(1500, rel=0.01)  # 5km @ 5:00/km
+        assert d.estimated_seconds(_RUN_SPEED) == pytest.approx(1500, rel=0.01)  # 5km @ 5:00/km
 
     def test_lap_button(self):
         d = Duration(lap_button=True)
-        assert d.estimated_seconds == 600  # default 10 min
+        assert d.estimated_seconds(_RUN_SPEED) == 600  # default 10 min
 
     def test_exactly_one_required(self):
         with pytest.raises(ValueError, match="exactly one of"):
@@ -67,6 +69,7 @@ class TestPaceTarget:
 class TestDSLWorkout:
     def _make_workout(self, n_repeats=5):
         return DSLWorkout(
+            sport="running",
             name="Test",
             steps=[
                 WarmupStep(duration=Duration(seconds=600)),
@@ -75,7 +78,7 @@ class TestDSLWorkout:
                     steps=[
                         IntervalStep(
                             duration=Duration(seconds=60),
-                            pace=PaceTarget(min_sec_per_km=250, max_sec_per_km=265),
+                            target=PaceTarget(min_sec_per_km=250, max_sec_per_km=265),
                         ),
                         RecoveryStep(duration=Duration(seconds=60)),
                     ],
@@ -101,6 +104,7 @@ class TestDSLWorkout:
         ]
         with pytest.raises(ValueError, match="50"):
             DSLWorkout(
+                sport="running",
                 name="Too many",
                 steps=[
                     WarmupStep(duration=Duration(seconds=300)),
@@ -126,7 +130,7 @@ REPEAT: 10
   RECOVERY: 90s @ no_target
 COOLDOWN: 10min
 """
-        w = parse_dsl("10x1min", text)
+        w = parse_dsl("10x1min", text, "running")
         assert w.name == "10x1min"
         assert isinstance(w.steps[0], WarmupStep)
         assert w.steps[0].duration.seconds == 600
@@ -138,21 +142,21 @@ COOLDOWN: 10min
         interval = repeat.steps[0]
         assert isinstance(interval, IntervalStep)
         assert interval.duration.seconds == 60
-        assert interval.pace is not None
-        assert interval.pace.min_sec_per_km == 250  # 4:10
-        assert interval.pace.max_sec_per_km == 265  # 4:25
+        assert isinstance(interval.target, PaceTarget)
+        assert interval.target.min_sec_per_km == 250  # 4:10
+        assert interval.target.max_sec_per_km == 265  # 4:25
 
         recovery = repeat.steps[1]
         assert isinstance(recovery, RecoveryStep)
         assert recovery.duration.seconds == 90
-        assert recovery.pace is None  # no_target
+        assert recovery.target is None  # no_target
 
         assert isinstance(w.steps[2], CooldownStep)
         assert w.steps[2].duration.seconds == 600
 
     def test_lap_button(self):
         text = "WARMUP: lap_button\nCOOLDOWN: lap_button"
-        w = parse_dsl("Lap test", text)
+        w = parse_dsl("Lap test", text, "running")
         warmup, cooldown = w.steps
         assert isinstance(warmup, WarmupStep)
         assert isinstance(cooldown, CooldownStep)
@@ -167,7 +171,7 @@ REPEAT: 8
   RECOVERY: 400m @ no_target
 COOLDOWN: 2km
 """
-        w = parse_dsl("8x1km", text)
+        w = parse_dsl("8x1km", text, "running")
         repeat = w.steps[1]
         assert isinstance(repeat, RepeatBlock)
         assert repeat.steps[0].duration.distance_m == 1000
@@ -180,15 +184,15 @@ WARMUP: 5min
 # Another comment
 COOLDOWN: 5min
 """
-        w = parse_dsl("comment test", text)
+        w = parse_dsl("comment test", text, "running")
         assert len(w.steps) == 2
 
     def test_unknown_keyword_raises(self):
         with pytest.raises(ValueError, match="Unknown keyword"):
-            parse_dsl("fail", "JUNK: 10min")
+            parse_dsl("fail", "JUNK: 10min", "running")
 
     def test_invalid_pace_order_raises(self):
         # Pace min must be faster (smaller) than max
         text = "WARMUP: 5min\nREPEAT: 5\n  INTERVAL: 1min @ 4:25-4:10/km\nCOOLDOWN: 5min"
         with pytest.raises(ValueError, match="Pace range invalid"):
-            parse_dsl("bad pace", text)
+            parse_dsl("bad pace", text, "running")

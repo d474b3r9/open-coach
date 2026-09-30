@@ -159,7 +159,7 @@ Try:
 What happens behind the scenes:
 
 1. Claude loads the `analyze-run` workflow skill (matching trigger).
-2. The skill instructs Claude to call `get_recent_runs(days=14, limit=5)`.
+2. The skill instructs Claude to call `get_recent_activities(days=14, limit=5)`.
 3. The MCP server reaches Garmin, returns 5 most recent runs with HR / pace / distance / cadence / etc.
 4. Claude reads `coaching-rules` rules (loaded at startup) for the analytical lens (e.g. easy = E-pace, no hard days back-to-back, …).
 5. Claude generates a human report.
@@ -190,7 +190,7 @@ What happens:
 1. `push-workout` workflow loads.
 2. Claude reads tomorrow's planned session from `coach://plan/active`.
 3. Claude assembles a DSL (`workout_dsl.parse_dsl`): WU + main set + CD with target paces.
-4. The watch provider translates DSL (for Garmin, `providers/garmin_workout.build_running_workout`) to a `RunningWorkout` (the schema garminconnect expects).
+4. The watch provider translates DSL (for Garmin, `providers/garmin_workout.build_workout`) to the garminconnect workout class of its sport (`RunningWorkout` for running).
 5. `build_and_push_workout` MCP tool uploads + schedules it.
 6. The workout appears on your Garmin watch by the next sync.
 

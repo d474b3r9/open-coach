@@ -16,6 +16,8 @@ from typing import TYPE_CHECKING, Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel, Field
 
+from open_coach.sports.base import OTHER_SPORT, ActivitySport, SportKey
+
 if TYPE_CHECKING:
     from datetime import date
 
@@ -28,10 +30,12 @@ if TYPE_CHECKING:
 Num = int | float
 
 
-class RunActivity(BaseModel):
-    """One running activity as listed by the watch platform."""
+class Activity(BaseModel):
+    """One recorded activity as listed by the watch platform."""
 
     activity_id: int | None = None
+    sport: ActivitySport = OTHER_SPORT
+    vendor_type: str = ""  # the platform's own activity type, e.g. "trail_running"
     name: str = ""
     start_time_local: str = ""  # ISO local timestamp; [:10] is the date
     distance_m: Num = 0.0
@@ -45,6 +49,7 @@ class RunActivity(BaseModel):
 class ActivityDetail(BaseModel):
     """One activity in detail: normalised totals plus the raw vendor payloads."""
 
+    sport: ActivitySport = OTHER_SPORT
     distance_m: Num = 0.0
     duration_s: Num = 0.0
     avg_hr: Num | None = None
@@ -84,7 +89,12 @@ class WatchProvider(Protocol):
     name: str
 
     # ── activities ──
-    async def list_runs(self, start: date, end: date) -> list[RunActivity]: ...
+    async def list_activities(
+        self, start: date, end: date, sports: frozenset[SportKey] | None = None
+    ) -> list[Activity]:
+        """Activities between *start* and *end*; only *sports* when given (None = all)."""
+        ...
+
     async def activity_detail(self, activity_id: int) -> ActivityDetail: ...
     async def personal_records(self) -> list[PersonalRecord]: ...
 

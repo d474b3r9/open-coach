@@ -14,12 +14,13 @@ from typing import TYPE_CHECKING, Any
 
 from open_coach.models import PersonalRecord
 from open_coach.providers.base import (
+    Activity,
     ActivityDetail,
     DailyHeartRate,
     RecoverySignals,
-    RunActivity,
     WatchWorkout,
 )
+from open_coach.sports.base import OTHER_SPORT, ActivitySport, SportKey
 from open_coach.vdot import HALF_MARATHON_M, MARATHON_M
 
 if TYPE_CHECKING:
@@ -102,9 +103,38 @@ def parse_garmin_personal_records(raw: Any) -> list[PersonalRecord]:
     return prs
 
 
-def _run_from_garmin(a: dict[str, Any]) -> RunActivity:
-    return RunActivity(
+# Garmin activity typeKey → coach sport. Unlisted types count as "other"
+# (training load only). Running sums road, trail and treadmill alike.
+_SPORT_BY_TYPE: dict[str, SportKey] = dict.fromkeys(
+    (
+        "running",
+        "trail_running",
+        "treadmill_running",
+        "track_running",
+        "street_running",
+        "indoor_running",
+        "virtual_run",
+        "ultra_run",
+        "obstacle_run",
+    ),
+    "running",
+)
+
+
+def _sport_of(type_dto: Any) -> tuple[ActivitySport, str]:
+    """(coach sport, Garmin typeKey) from an ``activityType`` / ``activityTypeDTO`` dict."""
+    type_key = type_dto.get("typeKey") if isinstance(type_dto, dict) else None
+    if not isinstance(type_key, str):
+        return OTHER_SPORT, ""
+    return _SPORT_BY_TYPE.get(type_key, OTHER_SPORT), type_key
+
+
+def _activity_from_garmin(a: dict[str, Any]) -> Activity:
+    sport, vendor_type = _sport_of(a.get("activityType"))
+    return Activity(
         activity_id=a.get("activityId"),
+        sport=sport,
+        vendor_type=vendor_type,
         name=a.get("activityName") or "",
         start_time_local=a.get("startTimeLocal") or "",
         distance_m=a.get("distance") or 0.0,
@@ -126,17 +156,24 @@ class GarminProvider:
 
     # ── activities ──
 
-    async def list_runs(self, start: date, end: date) -> list[RunActivity]:
+    async def list_activities(
+        self, start: date, end: date, sports: frozenset[SportKey] | None = None
+    ) -> list[Activity]:
         raw = await asyncio.to_thread(
-            self.client.get_activities_by_date, start.isoformat(), end.isoformat(), "running"
+            self.client.get_activities_by_date, start.isoformat(), end.isoformat()
         )
-        return [_run_from_garmin(a) for a in raw or []]
+        activities = [_activity_from_garmin(a) for a in raw or []]
+        if sports is None:
+            return activities
+        return [a for a in activities if a.sport in sports]
 
     async def activity_detail(self, activity_id: int) -> ActivityDetail:
         details = await asyncio.to_thread(self.client.get_activity, activity_id)
         splits = await asyncio.to_thread(self.client.get_activity_splits, activity_id)
         summary = details.get("summaryDTO", {})
+        sport, _ = _sport_of(details.get("activityTypeDTO"))
         return ActivityDetail(
+            sport=sport,
             distance_m=summary.get("distance") or 0.0,
             duration_s=summary.get("duration") or 0.0,
             avg_hr=summary.get("averageHR"),
@@ -233,11 +270,9 @@ class GarminProvider:
         ]
 
     async def upload_workout(self, dsl: DSLWorkout) -> int:
-        from open_coach.providers.garmin_workout import build_running_workout
+        from open_coach.providers.garmin_workout import build_workout
 
-        result = await asyncio.to_thread(
-            self.client.upload_running_workout, build_running_workout(dsl)
-        )
+        result = await asyncio.to_thread(self.client.upload_workout, build_workout(dsl).to_dict())
         workout_id: int = result["workoutId"]
         return workout_id
 

@@ -119,16 +119,16 @@ def interpret_tsb(tsb: float) -> str:
     return "Very fatigued — consider recovery"
 
 
-def daily_tss_from_runs(
-    runs: list[tuple[str, float, float | None]], threshold_hr: float
+def daily_tss_from_activities(
+    activities: list[tuple[str, float, float | None]], threshold_hr: float
 ) -> dict[date, float]:
     """Sum hrTSS per day from ``(start_time_local, duration_s, avg_hr)`` tuples.
 
-    Runs without heart rate, without duration or with an unparsable date are
+    Activities without heart rate, without duration or with an unparsable date are
     skipped (hrTSS needs HR).
     """
     daily: dict[date, float] = {}
-    for start_time_local, duration_s, avg_hr in runs:
+    for start_time_local, duration_s, avg_hr in activities:
         if not avg_hr or duration_s <= 0:
             continue
         try:

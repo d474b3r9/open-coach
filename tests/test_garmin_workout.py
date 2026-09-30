@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from garminconnect.workout import ExecutableStep, RepeatGroup, RunningWorkout
 
-from open_coach.providers.garmin_workout import build_running_workout
+from open_coach.providers.garmin_workout import build_workout
 from open_coach.workout_dsl import (
     CooldownStep,
     DSLWorkout,
@@ -21,6 +21,7 @@ from open_coach.workout_dsl import (
 
 def _make_interval_workout(n: int = 10) -> DSLWorkout:
     return DSLWorkout(
+        sport="running",
         name=f"{n}x1min threshold",
         steps=[
             WarmupStep(duration=Duration(seconds=600)),
@@ -29,7 +30,7 @@ def _make_interval_workout(n: int = 10) -> DSLWorkout:
                 steps=[
                     IntervalStep(
                         duration=Duration(seconds=60),
-                        pace=PaceTarget(min_sec_per_km=246, max_sec_per_km=261),
+                        target=PaceTarget(min_sec_per_km=246, max_sec_per_km=261),
                     ),
                     RecoveryStep(duration=Duration(seconds=60)),
                 ],
@@ -39,39 +40,39 @@ def _make_interval_workout(n: int = 10) -> DSLWorkout:
     )
 
 
-class TestBuildRunningWorkout:
+class TestBuildWorkout:
     def test_returns_running_workout(self):
         dsl = _make_interval_workout()
-        result = build_running_workout(dsl)
+        result = build_workout(dsl)
         assert isinstance(result, RunningWorkout)
 
     def test_workout_name(self):
         dsl = _make_interval_workout()
-        result = build_running_workout(dsl)
+        result = build_workout(dsl)
         assert result.workoutName == "10x1min threshold"
 
     def test_estimated_duration(self):
         dsl = _make_interval_workout(10)
-        result = build_running_workout(dsl)
+        result = build_workout(dsl)
         # warmup 600 + 10*(60+60) + cooldown 600 = 2400
         assert result.estimatedDurationInSecs == 2400
 
     def test_single_segment(self):
         dsl = _make_interval_workout()
-        result = build_running_workout(dsl)
+        result = build_workout(dsl)
         assert len(result.workoutSegments) == 1
         assert result.workoutSegments[0].sportType["sportTypeKey"] == "running"
 
     def test_top_level_step_count(self):
         # warmup + repeat_group + cooldown(10min) + auto lap-button finish = 4
         dsl = _make_interval_workout()
-        result = build_running_workout(dsl)
+        result = build_workout(dsl)
         steps = result.workoutSegments[0].workoutSteps
         assert len(steps) == 4
 
     def test_appends_lap_button_finish_when_missing(self):
         dsl = _make_interval_workout()  # cooldown is time-based → not open-ended
-        result = build_running_workout(dsl)
+        result = build_workout(dsl)
         last = result.workoutSegments[0].workoutSteps[-1]
         assert isinstance(last, ExecutableStep)
         assert last.stepType["stepTypeKey"] == "cooldown"
@@ -80,6 +81,7 @@ class TestBuildRunningWorkout:
 
     def test_no_duplicate_finish_when_dsl_already_ends_on_lap(self):
         dsl = DSLWorkout(
+            sport="running",
             name="easy run",
             steps=[
                 RepeatBlock(
@@ -87,48 +89,49 @@ class TestBuildRunningWorkout:
                     steps=[
                         IntervalStep(
                             duration=Duration(distance_m=8000),
-                            pace=PaceTarget(min_sec_per_km=325, max_sec_per_km=355),
+                            target=PaceTarget(min_sec_per_km=325, max_sec_per_km=355),
                         )
                     ],
                 ),
                 CooldownStep(duration=Duration(lap_button=True)),
             ],
         )
-        steps = build_running_workout(dsl).workoutSegments[0].workoutSteps
+        steps = build_workout(dsl).workoutSegments[0].workoutSteps
         assert len(steps) == 2
         assert steps[-1].endCondition["conditionTypeKey"] == "lap.button"
 
     def test_single_block_easy_run_gets_lap_finish(self):
         dsl = DSLWorkout(
+            sport="running",
             name="easy run",
             steps=[
                 RepeatBlock(
                     count=1,
-                    steps=[IntervalStep(duration=Duration(distance_m=8000), pace=None)],
+                    steps=[IntervalStep(duration=Duration(distance_m=8000), target=None)],
                 )
             ],
         )
-        steps = build_running_workout(dsl).workoutSegments[0].workoutSteps
+        steps = build_workout(dsl).workoutSegments[0].workoutSteps
         assert len(steps) == 2
         assert steps[-1].endCondition["conditionTypeKey"] == "lap.button"
 
     def test_warmup_step_type(self):
         dsl = _make_interval_workout()
-        result = build_running_workout(dsl)
+        result = build_workout(dsl)
         warmup = result.workoutSegments[0].workoutSteps[0]
         assert isinstance(warmup, ExecutableStep)
         assert warmup.stepType["stepTypeKey"] == "warmup"
 
     def test_cooldown_step_type(self):
         dsl = _make_interval_workout()
-        result = build_running_workout(dsl)
+        result = build_workout(dsl)
         cooldown = result.workoutSegments[0].workoutSteps[2]
         assert isinstance(cooldown, ExecutableStep)
         assert cooldown.stepType["stepTypeKey"] == "cooldown"
 
     def test_repeat_group(self):
         dsl = _make_interval_workout(8)
-        result = build_running_workout(dsl)
+        result = build_workout(dsl)
         repeat = result.workoutSegments[0].workoutSteps[1]
         assert isinstance(repeat, RepeatGroup)
         assert repeat.numberOfIterations == 8
@@ -136,7 +139,7 @@ class TestBuildRunningWorkout:
 
     def test_interval_step_time_condition(self):
         dsl = _make_interval_workout()
-        result = build_running_workout(dsl)
+        result = build_workout(dsl)
         repeat = result.workoutSegments[0].workoutSteps[1]
         interval = repeat.workoutSteps[0]
         assert interval.endCondition["conditionTypeKey"] == "time"
@@ -144,7 +147,7 @@ class TestBuildRunningWorkout:
 
     def test_interval_pace_target(self):
         dsl = _make_interval_workout()
-        result = build_running_workout(dsl)
+        result = build_workout(dsl)
         repeat = result.workoutSegments[0].workoutSteps[1]
         interval = repeat.workoutSteps[0]
         target = interval.targetType
@@ -158,26 +161,28 @@ class TestBuildRunningWorkout:
 
     def test_recovery_no_target(self):
         dsl = _make_interval_workout()
-        result = build_running_workout(dsl)
+        result = build_workout(dsl)
         repeat = result.workoutSegments[0].workoutSteps[1]
         recovery = repeat.workoutSteps[1]
         assert recovery.targetType["workoutTargetTypeKey"] == "no.target"
 
     def test_lap_button_condition(self):
         dsl = DSLWorkout(
+            sport="running",
             name="Lap test",
             steps=[
                 WarmupStep(duration=Duration(lap_button=True)),
                 CooldownStep(duration=Duration(lap_button=True)),
             ],
         )
-        result = build_running_workout(dsl)
+        result = build_workout(dsl)
         warmup = result.workoutSegments[0].workoutSteps[0]
         assert warmup.endCondition["conditionTypeKey"] == "lap.button"
         assert warmup.endConditionValue is None
 
     def test_distance_condition(self):
         dsl = DSLWorkout(
+            sport="running",
             name="Distance test",
             steps=[
                 RepeatBlock(
@@ -189,7 +194,7 @@ class TestBuildRunningWorkout:
                 )
             ],
         )
-        result = build_running_workout(dsl)
+        result = build_workout(dsl)
         repeat = result.workoutSegments[0].workoutSteps[0]
         interval = repeat.workoutSteps[0]
         assert interval.endCondition["conditionTypeKey"] == "distance"
@@ -200,7 +205,7 @@ class TestBuildRunningWorkout:
     def test_to_dict_is_serializable(self):
         """Ensure the payload can be serialized to dict (for API upload)."""
         dsl = _make_interval_workout()
-        result = build_running_workout(dsl)
+        result = build_workout(dsl)
         payload = result.to_dict()
         assert isinstance(payload, dict)
         assert "workoutName" in payload
@@ -215,8 +220,8 @@ REPEAT: 6
   RECOVERY: 3min @ no_target
 COOLDOWN: 10min
 """
-        dsl = parse_dsl("6x3min I", text)
-        result = build_running_workout(dsl)
+        dsl = parse_dsl("6x3min I", text, "running")
+        result = build_workout(dsl)
         payload = result.to_dict()
         assert payload["workoutName"] == "6x3min I"
         segments = payload["workoutSegments"]

@@ -1,4 +1,7 @@
-"""Workout DSL — structured description of running workouts.
+"""Workout DSL — structured, vendor-neutral description of a watch workout.
+
+Every workout names its ``sport``; each step target is a ``Target`` (pace or
+heart rate today) the sport must accept (``Sport.target_kinds``).
 
 Pydantic models representing the DSL semantics, plus a text parser
 for the compact notation used in skills and documentation.
@@ -17,9 +20,10 @@ Duration tokens:
     Xm    → distance (X metres)   [distinguish from "min" by trailing 'm' only]
     lap_button → open-ended, user presses lap key
 
-Pace tokens (after @):
+Target tokens (after @):
     M:SS-M:SS/km  → PaceTarget (min=faster, max=slower)
-    no_target     → no pace constraint
+    NNN-NNNbpm    → HeartRateTarget (min_bpm-max_bpm)
+    no_target     → no target
 """
 
 from __future__ import annotations
@@ -28,6 +32,8 @@ import re
 from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, model_validator
+
+from open_coach.sports.base import SportKey
 
 # ── Duration ──────────────────────────────────────────────────────────────────
 
@@ -54,23 +60,22 @@ class Duration(BaseModel):
             )
         return self
 
-    @property
-    def estimated_seconds(self) -> float:
-        """Best-effort duration estimate for plan duration calculations."""
+    def estimated_seconds(self, speed_mps: float) -> float:
+        """Best-effort duration estimate; a distance is covered at *speed_mps*."""
         if self.seconds is not None:
             return self.seconds
         if self.distance_m is not None:
-            # Assume ~5:00/km average pace
-            return self.distance_m / 1000 * 300
+            return self.distance_m / speed_mps
         return 600  # lap_button → assume 10 min
 
 
-# ── Pace target ───────────────────────────────────────────────────────────────
+# ── Targets ───────────────────────────────────────────────────────────────────
 
 
 class PaceTarget(BaseModel):
     """Pace range in sec/km. min < max (faster bound < slower bound)."""
 
+    kind: Literal["pace"] = "pace"
     min_sec_per_km: float = Field(gt=0)  # faster end
     max_sec_per_km: float = Field(gt=0)  # slower end
 
@@ -86,6 +91,23 @@ class PaceTarget(BaseModel):
             round(1000.0 / self.max_sec_per_km, 4),  # slower pace → lower speed
             round(1000.0 / self.min_sec_per_km, 4),  # faster pace → higher speed
         )
+
+
+class HeartRateTarget(BaseModel):
+    """Heart-rate range in bpm. min < max."""
+
+    kind: Literal["heart_rate"] = "heart_rate"
+    min_bpm: int = Field(gt=0)
+    max_bpm: int = Field(gt=0)
+
+    @model_validator(mode="after")
+    def _low_first(self) -> HeartRateTarget:
+        if self.min_bpm >= self.max_bpm:
+            raise ValueError("min_bpm must be < max_bpm")
+        return self
+
+
+Target = Annotated[PaceTarget | HeartRateTarget, Field(discriminator="kind")]
 
 
 # ── DSL step models ───────────────────────────────────────────────────────────
@@ -104,13 +126,13 @@ class CooldownStep(BaseModel):
 class IntervalStep(BaseModel):
     type: Literal["interval"] = "interval"
     duration: Duration
-    pace: PaceTarget | None = None  # None = no_target
+    target: Target | None = None  # None = no_target
 
 
 class RecoveryStep(BaseModel):
     type: Literal["recovery"] = "recovery"
     duration: Duration
-    pace: PaceTarget | None = None  # None = no_target (recommended)
+    target: Target | None = None  # None = no_target (recommended)
 
 
 class RepeatBlock(BaseModel):
@@ -136,6 +158,7 @@ WorkoutStep = Annotated[
 class DSLWorkout(BaseModel):
     """Complete workout description in structured DSL form."""
 
+    sport: SportKey
     name: str = Field(min_length=1, max_length=120)
     steps: list[WorkoutStep]
 
@@ -144,6 +167,21 @@ class DSLWorkout(BaseModel):
         total = self._count_executable_steps()
         if total > 50:
             raise ValueError(f"Workout too long: max 50 steps per workout (got {total})")
+        return self
+
+    @model_validator(mode="after")
+    def _validate_target_kinds(self) -> DSLWorkout:
+        from open_coach.sports.registry import get_sport
+
+        allowed = get_sport(self.sport).target_kinds
+        for step in self.steps:
+            inner = step.steps if isinstance(step, RepeatBlock) else []
+            for s in inner:
+                if s.target is not None and s.target.kind not in allowed:
+                    raise ValueError(
+                        f"{self.sport} workouts accept {sorted(allowed)} targets,"
+                        f" not {s.target.kind!r}"
+                    )
         return self
 
     def _count_executable_steps(self) -> int:
@@ -157,19 +195,23 @@ class DSLWorkout(BaseModel):
 
     @property
     def estimated_duration_s(self) -> int:
+        from open_coach.sports.registry import get_sport
+
+        speed = get_sport(self.sport).default_speed_mps
         total = 0.0
         for step in self.steps:
             if isinstance(step, RepeatBlock):
-                inner = sum(s.duration.estimated_seconds for s in step.steps)
+                inner = sum(s.duration.estimated_seconds(speed) for s in step.steps)
                 total += inner * step.count
             else:
-                total += step.duration.estimated_seconds
+                total += step.duration.estimated_seconds(speed)
         return int(total)
 
 
 # ── Text parser ───────────────────────────────────────────────────────────────
 
 _PACE_RE = re.compile(r"^(\d+):(\d{2})-(\d+):(\d{2})/km$")
+_HR_RE = re.compile(r"^(\d+)-(\d+)\s*bpm$")
 
 
 def _parse_duration(token: str) -> Duration:
@@ -191,13 +233,16 @@ def _parse_duration(token: str) -> Duration:
     return Duration(distance_m=value)
 
 
-def _parse_pace(token: str) -> PaceTarget | None:
+def _parse_target(token: str) -> PaceTarget | HeartRateTarget | None:
     token = token.strip()
     if token == "no_target":
         return None
+    hr = _HR_RE.fullmatch(token)
+    if hr:
+        return HeartRateTarget(min_bpm=int(hr.group(1)), max_bpm=int(hr.group(2)))
     m = _PACE_RE.fullmatch(token)
     if not m:
-        raise ValueError(f"Invalid pace: {token!r}. Use M:SS-M:SS/km or no_target")
+        raise ValueError(f"Invalid target: {token!r}. Use M:SS-M:SS/km, NNN-NNNbpm or no_target")
     min_s = int(m.group(1)) * 60 + int(m.group(2))
     max_s = int(m.group(3)) * 60 + int(m.group(4))
     if min_s >= max_s:
@@ -205,26 +250,27 @@ def _parse_pace(token: str) -> PaceTarget | None:
     return PaceTarget(min_sec_per_km=float(min_s), max_sec_per_km=float(max_s))
 
 
-def _parse_step_with_pace(
+def _parse_step_with_target(
     rest: str, step_cls: type[IntervalStep] | type[RecoveryStep]
 ) -> IntervalStep | RecoveryStep:
     """Parse INTERVAL or RECOVERY line content."""
     if "@" in rest:
-        dur_str, pace_str = rest.split("@", 1)
+        dur_str, target_str = rest.split("@", 1)
         dur = _parse_duration(dur_str.strip())
-        pace = _parse_pace(pace_str.strip())
+        target = _parse_target(target_str.strip())
     else:
         dur = _parse_duration(rest.strip())
-        pace = None
-    return step_cls(duration=dur, pace=pace)
+        target = None
+    return step_cls(duration=dur, target=target)
 
 
-def parse_dsl(name: str, text: str) -> DSLWorkout:
+def parse_dsl(name: str, text: str, sport: SportKey) -> DSLWorkout:
     """Parse compact text DSL into a DSLWorkout.
 
     Args:
         name: Workout name.
         text: Multi-line DSL string.
+        sport: Sport of the workout.
 
     Returns:
         Validated DSLWorkout.
@@ -262,10 +308,10 @@ def parse_dsl(name: str, text: str) -> DSLWorkout:
                 inner_stripped = inner_line.strip()
                 if inner_stripped.upper().startswith("INTERVAL:"):
                     rest = inner_stripped[9:].strip()
-                    inner.append(_parse_step_with_pace(rest, IntervalStep))
+                    inner.append(_parse_step_with_target(rest, IntervalStep))
                 elif inner_stripped.upper().startswith("RECOVERY:"):
                     rest = inner_stripped[9:].strip()
-                    inner.append(_parse_step_with_pace(rest, RecoveryStep))
+                    inner.append(_parse_step_with_target(rest, RecoveryStep))
                 else:
                     raise ValueError(f"Unexpected line inside REPEAT block: {inner_stripped!r}")
                 i += 1
@@ -274,4 +320,4 @@ def parse_dsl(name: str, text: str) -> DSLWorkout:
         else:
             raise ValueError(f"Unknown keyword on line {i + 1}: {stripped!r}")
 
-    return DSLWorkout(name=name, steps=steps)
+    return DSLWorkout(sport=sport, name=name, steps=steps)

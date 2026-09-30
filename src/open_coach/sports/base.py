@@ -13,6 +13,13 @@ from pydantic import BaseModel, Field
 SportKey = Literal["running"]
 """Sports with a plugin. Widen together with ``registry._SPORTS`` when adding one."""
 
+OTHER_SPORT: Literal["other"] = "other"
+ActivitySport = SportKey | Literal["other"]
+"""Sport of a recorded activity: a plugin sport, or ``other`` (counts in load only)."""
+
+TargetKind = Literal["pace", "heart_rate"]
+"""Watch-workout target kinds (``workout_dsl.Target``). Extend with power, swim pace…"""
+
 IntensityKind = Literal["pace_sec_per_km", "heart_rate_bpm"]
 """Unit of an ``Intensity`` value; extend (power_w, pace_sec_per_100m…) per sport."""
 
@@ -49,12 +56,18 @@ class Sport(Protocol):
     """What the core needs from a sport plugin."""
 
     key: SportKey
+    # FitnessMarker.metric of the sport (running: "vdot").
+    fitness_metric: str
     # Headline weekly volume shown in plans: distance (running) or duration.
     volume_metric: Literal["distance", "duration"]
     # Session types of this sport (``PlannedWorkout.workout_type`` values).
     workout_types: frozenset[str]
     # Session types that carry quality and are pushed to the watch.
     quality_types: frozenset[str]
+    # Watch-workout target kinds the sport accepts.
+    target_kinds: frozenset[TargetKind]
+    # Typical speed, to estimate the duration of a distance-based workout step.
+    default_speed_mps: float
 
     def format_intensity(self, intensity: Intensity) -> str:
         """Human-readable intensity, e.g. ``5:30/km``."""

@@ -17,6 +17,7 @@ from open_coach.sports.running import pace as running_pace
 from open_coach.workout_dsl import (
     CooldownStep,
     IntervalStep,
+    PaceTarget,
     RecoveryStep,
     RepeatBlock,
     WarmupStep,
@@ -49,8 +50,8 @@ def _repeats(dsl) -> list[RepeatBlock]:
 def _window(step) -> tuple[int, int]:
     """(fast, slow) pace window of a step — asserts a pace target exists."""
     assert isinstance(step, IntervalStep)
-    assert step.pace is not None
-    return (int(step.pace.min_sec_per_km), int(step.pace.max_sec_per_km))
+    assert isinstance(step.target, PaceTarget)
+    return (int(step.target.min_sec_per_km), int(step.target.max_sec_per_km))
 
 
 def _assert_lap_wrapped(dsl) -> None:
@@ -144,7 +145,7 @@ class TestSets:
         assert _window(work) == (280, 290)
         assert isinstance(rec, RecoveryStep)
         assert rec.duration.seconds == 120
-        assert rec.pace is None
+        assert rec.target is None
 
     def test_two_sets_each_with_own_pace_and_recovery(self):
         w = _w(

@@ -32,12 +32,12 @@ from _console import ensure_utf8_stdout
 
 # Sample arguments per read-only tool (only non-default args need an entry).
 SAMPLE_ARGS: dict[str, dict[str, Any]] = {
-    "get_recent_runs": {"days": 14, "limit": 10},
+    "get_recent_activities": {"days": 14, "limit": 10},
     "get_training_load": {"days": 60},
     "get_training_zones": {"vdot": 50.0},
     "calculate_vdot_from_race": {"distance_meters": 10000, "time_seconds": 2400},
     "get_strava_activities": {"months": 1, "activity_type": "Run"},
-    # get_activity_details needs a real id — resolved at runtime from get_recent_runs.
+    # get_activity_details needs a real id — resolved at runtime from get_recent_activities.
 }
 
 
@@ -74,9 +74,9 @@ async def main() -> int:
         ctx = _mk_ctx(lifespan_ctx)
 
         # Resolve a sample activity id for get_activity_details
-        runs_tool = next((t for t in read_only if t.name == "get_recent_runs"), None)
-        if runs_tool is not None:
-            runs = await runs_tool.fn(days=14, limit=5, ctx=ctx)
+        activities_tool = next((t for t in read_only if t.name == "get_recent_activities"), None)
+        if activities_tool is not None:
+            runs = await activities_tool.fn(days=14, limit=5, ctx=ctx)
             activities = runs.get("activities", []) if isinstance(runs, dict) else []
             sample_aid = next((r.get("activity_id") for r in activities), None)
             if sample_aid:

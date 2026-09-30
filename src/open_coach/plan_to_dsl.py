@@ -36,7 +36,7 @@ import re
 from dataclasses import dataclass
 
 from open_coach.models import PlannedWorkout
-from open_coach.sports.running import pace_of
+from open_coach.sports.running import RUNNING, pace_of
 from open_coach.workout_dsl import (
     CooldownStep,
     DSLWorkout,
@@ -175,14 +175,14 @@ def _steady_block(workout: PlannedWorkout) -> Conversion:
         steps=[
             IntervalStep(
                 duration=Duration(distance_m=float(workout.target_distance_m)),
-                pace=PaceTarget(
+                target=PaceTarget(
                     min_sec_per_km=pace - PACE_TOLERANCE_S,
                     max_sec_per_km=pace + EASY_WINDOW_SLOW_S,
                 ),
             )
         ],
     )
-    return Conversion(DSLWorkout(name=_name(workout), steps=[block]))
+    return Conversion(DSLWorkout(sport=RUNNING, name=_name(workout), steps=[block]))
 
 
 def _sets_from_description(
@@ -205,7 +205,7 @@ def _sets_from_description(
         steps: list[IntervalStep | RecoveryStep] = [
             IntervalStep(
                 duration=Duration(distance_m=_distance_m(m.group("dist"), m.group("unit"))),
-                pace=pace,
+                target=pace,
             )
         ]
         if rec is not None:
@@ -234,7 +234,7 @@ def _embedded_block(
         if unit == "min"
         else Duration(distance_m=_distance_m(val, unit))
     )
-    return RepeatBlock(count=1, steps=[IntervalStep(duration=duration, pace=pace)])
+    return RepeatBlock(count=1, steps=[IntervalStep(duration=duration, target=pace)])
 
 
 def _quality(workout: PlannedWorkout, paces: dict[str, tuple[float, float]] | None) -> Conversion:
@@ -261,7 +261,7 @@ def _quality(workout: PlannedWorkout, paces: dict[str, tuple[float, float]] | No
         *body,
         CooldownStep(duration=Duration(lap_button=True)),
     ]
-    return Conversion(DSLWorkout(name=_name(workout), steps=steps))
+    return Conversion(DSLWorkout(sport=RUNNING, name=_name(workout), steps=steps))
 
 
 def carries_quality(workout: PlannedWorkout) -> bool:
@@ -301,6 +301,7 @@ def convert_planned_workout(
                 return Conversion(None, block)
             return Conversion(
                 DSLWorkout(
+                    sport=RUNNING,
                     name=_name(workout),
                     steps=[
                         WarmupStep(duration=Duration(lap_button=True)),

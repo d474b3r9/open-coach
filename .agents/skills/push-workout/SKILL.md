@@ -62,12 +62,14 @@ Or in two steps if the athlete wants to validate first:
 2. schedule_watch_workout(workout_id=<id>, target_date=<YYYY-MM-DD>)
 ```
 
-`workout_json` also accepts the compact text DSL (then pass `name=` too):
+Every `DSLWorkout` names its `sport` (`"sport": "running"`). A step `target` is a pace (`{"kind": "pace", "min_sec_per_km", "max_sec_per_km"}`) or a heart-rate range (`{"kind": "heart_rate", "min_bpm", "max_bpm"}`), or null for no target.
+
+`workout_json` also accepts the compact text DSL (then pass `name=` and `sport=` too):
 ```
 WARMUP: 10min
 REPEAT: 10
   INTERVAL: 1min @ 4:10-4:25/km
-  RECOVERY: 1min
+  RECOVERY: 1min @ 120-135bpm
 COOLDOWN: 10min
 ```
 
