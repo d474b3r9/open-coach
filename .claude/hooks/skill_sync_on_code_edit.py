@@ -52,7 +52,8 @@ def main() -> None:
     if "open_coach" not in fp.parts:
         return
 
-    if fp.name not in COACHING_MODULES:
+    # Sport plugins (sports/<key>/…) hold coaching logic too.
+    if fp.name not in COACHING_MODULES and "sports" not in fp.parts:
         return
 
     context = (

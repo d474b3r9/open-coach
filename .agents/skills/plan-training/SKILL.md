@@ -72,7 +72,7 @@ If `rate_limited`: wait ~2 minutes and retry.
 
 After each completed session:
 ```
-update_workout_completion(week_number, workout_date, completed=True, activity_id?, actual_distance_km?)
+update_workout_completion(week_number, workout_date, completed=True, activity_id?, actual_distance_m?, actual_duration_s?)
 ```
 
 If skipped:

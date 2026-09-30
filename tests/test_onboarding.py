@@ -10,6 +10,7 @@ from open_coach.onboarding import (
     compute_vdot_from_prs,
     detect_personal_records,
 )
+from open_coach.sports.running import vdot_of
 
 
 def _activity(
@@ -21,12 +22,12 @@ def _activity(
 ) -> ActivitySummary:
     return ActivitySummary(
         activity_id=1000 + idx,
+        sport="running",
         date=date.today() - timedelta(days=days_ago),
         distance_m=distance_m,
         duration_s=duration_s,
         avg_hr=avg_hr,
         max_hr=(avg_hr + 20) if avg_hr else None,
-        avg_pace_sec_per_km=duration_s / distance_m * 1000 if distance_m > 0 else None,
     )
 
 
@@ -74,7 +75,6 @@ class TestComputeVdotFromPrs:
                 distance_label="5K",
                 distance_m=5000,
                 time_s=1200,
-                pace_sec_per_km=240,
                 activity_id=1,
                 date=date.today(),
             ),
@@ -82,7 +82,6 @@ class TestComputeVdotFromPrs:
                 distance_label="10K",
                 distance_m=10000,
                 time_s=2400,
-                pace_sec_per_km=240,
                 activity_id=2,
                 date=date.today(),
             ),
@@ -103,7 +102,7 @@ class TestAnalyzeTrainingPatterns:
         activities = [_activity(10000, 3600, days_ago=i * 2, avg_hr=145, idx=i) for i in range(30)]
         pattern = analyze_training_patterns(activities, window_days=90)
         assert pattern is not None
-        assert pattern.weekly_volume_km > 0
+        assert pattern.weekly_distance_m > 0
         assert pattern.weekly_frequency > 0
 
     def test_not_enough_data(self):
@@ -133,11 +132,11 @@ class TestBuildProfileFromActivities:
         ]
         profile = build_profile_from_activities(activities)
         assert profile.onboarding_complete is True
-        assert profile.vdot is not None
-        assert len(profile.personal_records) > 0
+        assert vdot_of(profile) is not None
+        assert len(profile.sport_profile("running").personal_records) > 0
 
     def test_empty_activities(self):
         profile = build_profile_from_activities([])
         assert profile.onboarding_complete is True
-        assert profile.vdot is None
-        assert len(profile.personal_records) == 0
+        assert vdot_of(profile) is None
+        assert len(profile.sport_profile("running").personal_records) == 0

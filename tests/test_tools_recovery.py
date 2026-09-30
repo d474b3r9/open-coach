@@ -5,11 +5,12 @@ from __future__ import annotations
 from datetime import date
 
 from open_coach.models import AthleteProfile, PlannedWorkout
+from open_coach.sports.running import pace
 from open_coach.tools.recovery import (
     get_adaptive_recommendation,
     get_recovery_status,
 )
-from tests.conftest import MockStorage, StubGarmin, make_plan, mock_ctx
+from tests.conftest import MockStorage, StubGarmin, make_plan, mock_ctx, running_profile
 
 
 def _healthy_garmin() -> StubGarmin:
@@ -113,10 +114,10 @@ class TestGetAdaptiveRecommendation:
                 date=date.today(),
                 workout_type="tempo",
                 description="4k tempo",
-                target_pace_sec_per_km=270.0,
+                target_intensity=pace(270.0),
             )
         ]
-        storage = MockStorage(plan=plan, profile=AthleteProfile(vdot=48.0, tsb=2.0))
+        storage = MockStorage(plan=plan, profile=running_profile(vdot=48.0, tsb=2.0))
         ctx = mock_ctx(storage=storage, garmin=_healthy_garmin())
         result = await get_adaptive_recommendation(ctx=ctx)
 

@@ -3,31 +3,38 @@
 from __future__ import annotations
 
 from open_coach.models import PlannedWorkout, TrainingWeek
-
-# Session types that carry no running volume and are excluded from completion rate.
-# "strength" is canonical; "kine-renfo" / "kiné-renfo" are the legacy French
-# names still found in existing plans.
-NON_RUN_TYPES = frozenset({"rest", "strength", "kine-renfo", "kiné-renfo"})  # fr-ok
+from open_coach.sports.base import NON_SPORT_WORKOUT_TYPES, SportKey, Volume
 
 
-def is_run_workout(workout: PlannedWorkout) -> bool:
+def is_sport_workout(workout: PlannedWorkout) -> bool:
     """True when the session counts toward completion (rest / strength excluded)."""
-    return workout.workout_type.casefold() not in NON_RUN_TYPES
+    return workout.workout_type.casefold() not in NON_SPORT_WORKOUT_TYPES
 
 
-def recompute_week_actuals(week: TrainingWeek) -> None:
-    """Refresh ``actual_volume_km`` and ``completion_rate`` in place.
+def recompute_week_actuals(week: TrainingWeek, default_sport: SportKey) -> None:
+    """Refresh ``actual_volume`` and ``completion_rate`` in place.
 
-    - actual_volume_km = sum of ``actual_distance_km`` over completed workouts
-      (a completed workout with no recorded distance counts 0 — no guessing)
-      + km of every ``extra_activities`` entry.
-    - completion_rate = completed run sessions / run sessions
-      (workout types in NON_RUN_TYPES are excluded from both counts).
+    - actual_volume[sport] = distance / duration of completed sessions of that
+      sport (a completed session with nothing recorded counts 0 — no guessing)
+      + every ``extra_activities`` entry of that sport. A session without its own
+      sport belongs to *default_sport* (the plan's).
+    - completion_rate = completed sport sessions / sport sessions
+      (workout types in NON_SPORT_WORKOUT_TYPES are excluded from both counts).
     """
-    planned_km = sum(w.actual_distance_km or 0.0 for w in week.workouts if w.completed)
-    extra_km = sum(a.distance_km for a in week.extra_activities)
-    week.actual_volume_km = round(planned_km + extra_km, 2)
+    volume: dict[SportKey, Volume] = {}
 
-    runs = [w for w in week.workouts if is_run_workout(w)]
-    done = sum(1 for w in runs if w.completed)
-    week.completion_rate = done / len(runs) if runs else 0.0
+    def add(sport: SportKey, distance_m: float | None, duration_s: float | None) -> None:
+        v = volume.setdefault(sport, Volume())
+        v.distance_m = round(v.distance_m + (distance_m or 0.0), 1)
+        v.duration_s = round(v.duration_s + (duration_s or 0.0), 1)
+
+    sessions = [w for w in week.workouts if is_sport_workout(w)]
+    for w in sessions:
+        if w.completed:
+            add(w.sport or default_sport, w.actual_distance_m, w.actual_duration_s)
+    for a in week.extra_activities:
+        add(a.sport, a.distance_m, a.duration_s)
+    week.actual_volume = volume
+
+    done = sum(1 for w in sessions if w.completed)
+    week.completion_rate = done / len(sessions) if sessions else 0.0

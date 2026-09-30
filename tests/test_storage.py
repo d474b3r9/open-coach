@@ -14,6 +14,7 @@ from open_coach.models import (
     TrainingPlan,
     WorkoutFeedback,
 )
+from open_coach.sports.running import set_vdot, vdot_of
 
 
 class TestEnsureDirs:
@@ -29,12 +30,13 @@ class TestProfile:
         assert storage.load_profile() is None
 
     def test_save_and_load(self, storage):
-        profile = AthleteProfile(vdot=50.0, max_hr=190, resting_hr=50)
+        profile = AthleteProfile(max_hr=190, resting_hr=50)
+        set_vdot(profile, 50.0)
         storage.save_profile(profile)
 
         loaded = storage.load_profile()
         assert loaded is not None
-        assert loaded.vdot == 50.0
+        assert vdot_of(loaded) == 50.0
         assert loaded.max_hr == 190
         assert loaded.updated_at is not None
 
@@ -45,7 +47,11 @@ class TestGoals:
 
     def test_save_and_load(self, storage):
         goals = GoalsConfig(
-            goals=[TrainingGoal(race_name="Semi Paris", distance_m=21097.5, priority="A")]
+            goals=[
+                TrainingGoal(
+                    sport="running", race_name="Semi Paris", distance_m=21097.5, priority="A"
+                )
+            ]
         )
         storage.save_goals(goals)
 
@@ -92,7 +98,7 @@ class TestPlans:
     def _make_plan(self, name="Test Plan"):
         return TrainingPlan(
             name=name,
-            goal=TrainingGoal(distance_m=21097.5),
+            goal=TrainingGoal(sport="running", distance_m=21097.5),
             start_date=date(2026, 3, 1),
             end_date=date(2026, 5, 31),
         )
@@ -186,6 +192,7 @@ class TestActivityCache:
             ActivitySummary(
                 activity_id=123,
                 date=date(2026, 3, 15),
+                sport="running",
                 distance_m=10000,
                 duration_s=3000,
             )
@@ -200,12 +207,16 @@ class TestActivityCache:
         storage.save_activity_cache(
             [
                 ActivitySummary(
-                    activity_id=1, date=date(2026, 3, 15), distance_m=5000, duration_s=1500
+                    activity_id=1,
+                    date=date(2026, 3, 15),
+                    sport="running",
+                    distance_m=5000,
+                    duration_s=1500,
                 )
             ]
         )
         raw = json.loads((storage.base_dir / "activity_cache" / "summary.json").read_text())
-        assert raw["schema_version"] == 1
+        assert raw["schema_version"] == 2
         assert len(raw["activities"]) == 1
 
     def test_load_accepts_legacy_bare_list(self, storage):

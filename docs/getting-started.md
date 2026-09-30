@@ -103,7 +103,7 @@ The Model Context Protocol (MCP) is the standard for exposing tools and resource
 
 ```
 ~/.open-coach/
-├── profile.json         athlete profile (VDOT, HRmax, resting HR, …)
+├── profile.json         athlete profile (HRmax, resting HR, per-sport fitness such as VDOT, …)
 ├── goals.json           target races
 ├── constraints.json     injuries, agenda caps, preferences
 ├── plans/active.json    current training plan
@@ -112,7 +112,7 @@ The Model Context Protocol (MCP) is the standard for exposing tools and resource
 └── strava_tokens.json   Strava OAuth tokens (auto-refresh)
 ```
 
-No database. No migration framework. If you outgrow JSON you can write a one-shot upgrade script — but for personal-scale data (~thousands of activities over a career), JSON is fine and grep-friendly.
+No database. When a shape changes, `migrations.py` upgrades older files on first read (the original is kept once as `<file>.v<N>.bak`), so an update never asks you to convert anything by hand. For personal-scale data (~thousands of activities over a career), JSON is fine and grep-friendly.
 
 ---
 

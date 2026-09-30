@@ -131,12 +131,14 @@ async def my_tool(arg: int, ctx: Context | None = None) -> dict:
 | `race_predictor.py` | Race predictions, pacing splits, multi-component readiness |
 | `recovery_monitor.py` | Multi-signal recovery scoring + adaptive recommendations |
 | `plan_renderer.py` | `render_plan_to_markdown(plan)` — pure formatter; `write_plan_markdown` is the I/O wrapper |
-| `plan_metrics.py` | `recompute_week_actuals(week)` — refreshes `actual_volume_km` (completed workouts + `extra_activities`) and `completion_rate` (rest / strength excluded). Used by `update_workout_completion` |
+| `plan_metrics.py` | `recompute_week_actuals(week, default_sport)` — refreshes `actual_volume` per sport (completed sessions + `extra_activities`) and `completion_rate` (rest / strength excluded). Used by `update_workout_completion` |
 | `i18n.py` | `t(key, lang)` / `day_abbreviation` — EN/FR table for text the code generates (plan markdown, session descriptions, plan name). Language comes from `AthleteProfile.language` via `tools/_common.profile_language`; the conversation language is left to the LLM |
 
 ### Persistence
 
-`CoachStorage` (`storage.py`) reads/writes JSON files in `~/.open-coach/`. Each model has a `schema_version` field. Tests use `CoachStorage(base_dir=tmp_path)` for isolation.
+`CoachStorage` (`storage.py`) reads/writes JSON files in `~/.open-coach/`. Each model has a `schema_version` field; on read, `migrations.migrate(kind, data)` upgrades an older file step by step (pure dict → dict), storage validates it, writes it back in the current schema and keeps the original once as `<file>.v<N>.bak`. Changing a persisted shape = bump the model's `schema_version` default + add a step in `migrations._MIGRATIONS` + a case in `tests/test_migrations.py`. Tests use `CoachStorage(base_dir=tmp_path)` for isolation.
+
+Schema v2 is sport-agnostic: distances in metres, durations in seconds, targets as `Intensity(kind, value)`, weekly volume as `dict[sport, Volume]`, per-sport fitness / PRs / training pattern under `AthleteProfile.sports`, `sport` on goals, sessions (None = the plan's), extra activities and feedback. Neutral types live in `sports/base.py`; running helpers (`vdot_of`, `set_vdot`, `pace`, `pace_of`, `avg_pace_sec_per_km`) in `sports/running/`.
 
 ### Watch workouts
 
@@ -202,7 +204,7 @@ On Windows, `setx` writes at User scope but is not visible in the current shell 
 
 1. Create the module under `src/open_coach/tools/` and decorate with `@mcp.tool()` or `@mcp.resource("coach://...")`.
 2. **Annotate context as `ctx: Context` on every tool and resource** that needs lifespan state (see FastMCP gotcha). The codebase convention for tools is `ctx: Context | None = None` followed by `assert ctx is not None` (FastMCP always injects it at call time; the Optional default keeps direct test calls explicit). Resources use the required form `ctx: Context`.
-3. Access shared state via `get_watch(ctx)` and `ctx.lifespan_context["strava" | "storage"]` — soft-fail if the watch provider or a client is `None` by returning `watch_error()` from `tools/_common.py` (never raise). Call `WatchProvider` methods only, never a vendor SDK (see "Watch providers"). `tools/_common.py` also holds the shared helpers: `resolve_target_date`, `avg_pace_sec_per_km`, `upload_and_register`, `schedule_and_record`, `save_active_plan` — reuse them instead of re-implementing.
+3. Access shared state via `get_watch(ctx)` and `ctx.lifespan_context["strava" | "storage"]` — soft-fail if the watch provider or a client is `None` by returning `watch_error()` from `tools/_common.py` (never raise). Call `WatchProvider` methods only, never a vendor SDK (see "Watch providers"). `tools/_common.py` also holds the shared helpers: `resolve_target_date`, `upload_and_register`, `schedule_and_record`, `save_active_plan` — reuse them instead of re-implementing.
 4. Add the module to the import line in `server.py` so registration fires at startup.
 5. If the module is pure-logic, put the algorithm in a sibling top-level module and keep `tools/*.py` as a thin I/O wrapper.
 

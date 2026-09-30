@@ -10,7 +10,7 @@ from open_coach.tools.training import (
     get_training_load,
     get_training_zones,
 )
-from tests.conftest import MockStorage, StubGarmin, mock_ctx
+from tests.conftest import MockStorage, StubGarmin, mock_ctx, running_profile
 
 
 class TestCalculateVdotFromRace:
@@ -41,7 +41,7 @@ class TestGetTrainingZones:
         assert result["vdot"] > 0
 
     async def test_falls_back_to_profile(self):
-        storage = MockStorage(profile=AthleteProfile(vdot=47.5))
+        storage = MockStorage(profile=running_profile(vdot=47.5))
         result = await get_training_zones(ctx=mock_ctx(storage=storage))
         assert result["vdot"] == 47.5
 
@@ -50,7 +50,7 @@ class TestGetTrainingZones:
         assert "error" in result
 
     async def test_hr_zones_merged_from_profile(self):
-        storage = MockStorage(profile=AthleteProfile(vdot=50.0, resting_hr=50, max_hr=190))
+        storage = MockStorage(profile=running_profile(vdot=50.0, resting_hr=50, max_hr=190))
         result = await get_training_zones(ctx=mock_ctx(storage=storage))
         # Karvonen: 50 + 140 * (0.59, 0.74) → 133-154 bpm
         assert result["zones"]["easy"]["hr"] == "133-154 bpm"
@@ -59,14 +59,14 @@ class TestGetTrainingZones:
         assert "hint" not in result
 
     async def test_no_hr_data_gives_pace_only_with_hint(self):
-        storage = MockStorage(profile=AthleteProfile(vdot=50.0))
+        storage = MockStorage(profile=running_profile(vdot=50.0))
         result = await get_training_zones(ctx=mock_ctx(storage=storage))
         assert all(z["hr"] is None for z in result["zones"].values())
         assert all(z["pace"] is not None for z in result["zones"].values())
         assert "HR zones unavailable" in result["hint"]
 
     async def test_inverted_hr_degrades_to_pace_only(self):
-        storage = MockStorage(profile=AthleteProfile(vdot=50.0, resting_hr=190, max_hr=150))
+        storage = MockStorage(profile=running_profile(vdot=50.0, resting_hr=190, max_hr=150))
         result = await get_training_zones(ctx=mock_ctx(storage=storage))
         assert all(z["hr"] is None for z in result["zones"].values())
         assert "hint" in result

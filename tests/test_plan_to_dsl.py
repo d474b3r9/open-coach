@@ -13,6 +13,7 @@ import pytest
 
 from open_coach.models import PlannedWorkout
 from open_coach.plan_to_dsl import convert_planned_workout
+from open_coach.sports.running import pace as running_pace
 from open_coach.workout_dsl import (
     CooldownStep,
     IntervalStep,
@@ -36,8 +37,8 @@ def _w(wtype: str, description: str, dist: float | None = 10.0, pace: float | No
         date=date(2026, 9, 10),
         workout_type=wtype,
         description=description,
-        target_distance_km=dist,
-        target_pace_sec_per_km=pace,
+        target_distance_m=dist * 1000 if dist is not None else None,
+        target_intensity=running_pace(pace),
     )
 
 

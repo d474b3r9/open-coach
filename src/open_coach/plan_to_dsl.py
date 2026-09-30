@@ -36,6 +36,7 @@ import re
 from dataclasses import dataclass
 
 from open_coach.models import PlannedWorkout
+from open_coach.sports.running import pace_of
 from open_coach.workout_dsl import (
     CooldownStep,
     DSLWorkout,
@@ -165,14 +166,15 @@ def _name(workout: PlannedWorkout) -> str:
 
 def _steady_block(workout: PlannedWorkout) -> Conversion:
     """Rule A: one distance block with an easy pace window."""
-    if workout.target_distance_km is None or workout.target_pace_sec_per_km is None:
+    target_pace = pace_of(workout.target_intensity)
+    if workout.target_distance_m is None or target_pace is None:
         return Conversion(None, "steady run without distance or pace target")
-    pace = round(workout.target_pace_sec_per_km)
+    pace = round(target_pace)
     block = RepeatBlock(
         count=1,
         steps=[
             IntervalStep(
-                duration=Duration(distance_m=float(workout.target_distance_km) * 1000),
+                duration=Duration(distance_m=float(workout.target_distance_m)),
                 pace=PaceTarget(
                     min_sec_per_km=pace - PACE_TOLERANCE_S,
                     max_sec_per_km=pace + EASY_WINDOW_SLOW_S,
@@ -240,12 +242,12 @@ def _quality(workout: PlannedWorkout, paces: dict[str, tuple[float, float]] | No
     text = workout.description or ""
     body: list[WorkoutStep]
     if _SET_RE.search(text):
-        sets = _sets_from_description(text, paces, workout.target_pace_sec_per_km)
+        sets = _sets_from_description(text, paces, pace_of(workout.target_intensity))
         if isinstance(sets, str):
             return Conversion(None, sets)
         body = list(sets)
     elif _EMBEDDED_RE.search(text):
-        block = _embedded_block(text, paces, workout.target_pace_sec_per_km)
+        block = _embedded_block(text, paces, pace_of(workout.target_intensity))
         if isinstance(block, str):
             return Conversion(None, block)
         body = [block]

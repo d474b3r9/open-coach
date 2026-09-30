@@ -16,9 +16,16 @@ from fastmcp import Context
 from open_coach.models import PlannedWorkout, TrainingConstraints
 from open_coach.plan_generator import generate_plan
 from open_coach.plan_metrics import recompute_week_actuals
-from open_coach.plan_renderer import count_phases, write_plan_markdown
+from open_coach.plan_renderer import (
+    count_phases,
+    format_volume,
+    volume_headline,
+    write_plan_markdown,
+)
 from open_coach.plan_to_dsl import carries_quality, convert_planned_workout
 from open_coach.server import mcp
+from open_coach.sports.base import Volume
+from open_coach.sports.running import RUNNING, vdot_of
 from open_coach.tools._common import (
     get_watch,
     invalid_date_error,
@@ -81,7 +88,8 @@ async def generate_training_plan(
     storage = ctx.lifespan_context["storage"]
 
     profile = await load_profile_live(ctx)
-    if profile is None or profile.vdot is None:
+    vdot = vdot_of(profile)
+    if profile is None or vdot is None:
         return {"error": "No athlete profile. Run bootstrap_athlete_profile first."}
 
     goals = storage.load_goals()
@@ -109,15 +117,14 @@ async def generate_training_plan(
     if goal.race_date <= start:
         return {"error": f"Race date {goal.race_date} must be after start date {start}."}
 
+    pattern = profile.sport_profile(RUNNING).training_pattern
     current_km = (
-        profile.training_pattern.weekly_volume_km
-        if profile.training_pattern
-        else max(20.0, (profile.ctl or 30.0) * 0.9)
+        pattern.weekly_distance_m / 1000 if pattern else max(20.0, (profile.ctl or 30.0) * 0.9)
     )
 
     plan = generate_plan(
         goal=goal,
-        vdot=profile.vdot,
+        vdot=vdot,
         current_weekly_km=current_km,
         constraints=constraints,
         start_date=start,
@@ -132,7 +139,10 @@ async def generate_training_plan(
     except Exception as exc:
         logger.warning("Failed to write markdown copy of plan: %s", exc)
 
-    volumes = [w.planned_volume_km for w in plan.weeks]
+    sport = plan.goal.sport
+    peak_week = max(
+        plan.weeks, key=lambda w: volume_headline(sport, w.planned_volume.get(sport, Volume()))
+    )
 
     result: dict = {
         "status": "plan_generated",
@@ -140,8 +150,8 @@ async def generate_training_plan(
         "weeks": len(plan.weeks),
         "start_date": str(plan.start_date),
         "end_date": str(plan.end_date),
-        "start_volume_km": volumes[0] if volumes else 0,
-        "peak_volume_km": max(volumes) if volumes else 0,
+        "start_volume": format_volume(plan.weeks[0].planned_volume, sport),
+        "peak_volume": format_volume(peak_week.planned_volume, sport),
         "phases": count_phases(plan),
         "markdown_copy": md_path,
     }
@@ -215,8 +225,8 @@ async def sync_upcoming_workouts(
     registry = storage.load_workout_registry()
     scheduled_dates = {d for upload in registry.active_workouts() for d in upload.schedule_dates}
 
-    profile = storage.load_profile()
-    paces = training_paces(profile.vdot) if profile is not None and profile.vdot else None
+    vdot = vdot_of(storage.load_profile())
+    paces = training_paces(vdot) if vdot else None
 
     uploaded = 0
     skipped = 0
@@ -304,7 +314,8 @@ async def update_workout_completion(
     workout_date: str,
     completed: bool = True,
     activity_id: int | None = None,
-    actual_distance_km: float | None = None,
+    actual_distance_m: float | None = None,
+    actual_duration_s: float | None = None,
     skipped_reason: str | None = None,
     ctx: Context | None = None,
 ) -> dict:
@@ -315,7 +326,8 @@ async def update_workout_completion(
         workout_date: Date of the workout (YYYY-MM-DD).
         completed: True = done, False = skipped.
         activity_id: Activity ID on the watch platform (if completed).
-        actual_distance_km: Actual distance covered.
+        actual_distance_m: Actual distance covered, in metres.
+        actual_duration_s: Actual moving time, in seconds.
         skipped_reason: Reason for skipping.
 
     Returns:
@@ -341,12 +353,14 @@ async def update_workout_completion(
     workout.completed = completed
     if activity_id is not None:
         workout.actual_activity_id = activity_id
-    if actual_distance_km is not None:
-        workout.actual_distance_km = actual_distance_km
+    if actual_distance_m is not None:
+        workout.actual_distance_m = actual_distance_m
+    if actual_duration_s is not None:
+        workout.actual_duration_s = actual_duration_s
     if skipped_reason is not None:
         workout.skipped_reason = skipped_reason
 
-    recompute_week_actuals(week)
+    recompute_week_actuals(week, plan.goal.sport)
 
     storage.save_plan(plan)
 

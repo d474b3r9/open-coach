@@ -13,7 +13,7 @@ from datetime import date, timedelta
 from pathlib import Path
 from typing import Any
 
-from open_coach.models import AthleteProfile, PersonalRecord
+from open_coach.models import PersonalRecord
 from open_coach.providers import (
     ActivityDetail,
     DailyHeartRate,
@@ -44,7 +44,7 @@ from open_coach.tools.workout import (
     upload_workout,
 )
 from open_coach.workout_dsl import DSLWorkout
-from tests.conftest import make_plan, make_planned_workout, mock_ctx
+from tests.conftest import make_plan, make_planned_workout, mock_ctx, running_profile
 
 DSL = "WARMUP: lap_button\nREPEAT: 2\n  INTERVAL: 1km @ 4:15-4:25/km\nCOOLDOWN: lap_button"
 
@@ -142,7 +142,7 @@ async def test_health_and_status_tools(storage) -> None:
 
 
 async def test_training_load_and_recovery_tools(storage) -> None:
-    storage.save_profile(AthleteProfile(vdot=48.0, tsb=5.0, onboarding_complete=True))
+    storage.save_profile(running_profile(vdot=48.0, tsb=5.0, onboarding_complete=True))
     ctx = _ctx(storage, FakeWatch())
     load = await get_training_load(ctx=ctx)
     assert "error" not in load
@@ -161,7 +161,7 @@ async def test_profile_and_feedback_tools(storage) -> None:
 
     await record_workout_feedback(activity_id=1, perceived_effort="easy", ctx=_ctx(storage, watch))
     entry = storage.load_feedback().entries[-1]
-    assert entry.actual_distance_km == 8.0
+    assert entry.actual_distance_m == 8000.0
     assert entry.avg_hr == 147
 
 
@@ -206,7 +206,7 @@ async def test_calendar_cleanup_tools(storage) -> None:
 
 
 async def test_plan_sync_and_archive_tools(storage) -> None:
-    storage.save_profile(AthleteProfile(vdot=48.7, onboarding_complete=True))
+    storage.save_profile(running_profile(vdot=48.7, onboarding_complete=True))
     tempo = make_planned_workout(
         offset_days=1,
         wtype="tempo",

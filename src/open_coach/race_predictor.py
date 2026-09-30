@@ -23,6 +23,7 @@ from open_coach.models import (
     TrainingGoal,
     TrainingPlan,
 )
+from open_coach.sports.running import RUNNING, vdot_of
 from open_coach.vdot import HALF_MARATHON_M, MARATHON_M, predict_time
 
 # ── Standard race distances ──
@@ -372,7 +373,8 @@ def _ctl_thresholds(distance_m: float) -> tuple[int, int]:
 
 def _score_vdot(profile: AthleteProfile, goal: TrainingGoal) -> ReadinessComponent:
     """Score VDOT fitness vs target time."""
-    if profile.vdot is None:
+    vdot = vdot_of(profile)
+    if vdot is None:
         return ReadinessComponent(
             name="VDOT Fitness",
             score=0.3,
@@ -385,10 +387,10 @@ def _score_vdot(profile: AthleteProfile, goal: TrainingGoal) -> ReadinessCompone
             name="VDOT Fitness",
             score=0.8,
             status="ready",
-            detail=f"VDOT {profile.vdot:.1f} — no target time set to compare against.",
+            detail=f"VDOT {vdot:.1f} — no target time set to compare against.",
         )
 
-    predicted_s = predict_time(profile.vdot, goal.distance_m)
+    predicted_s = predict_time(vdot, goal.distance_m)
     gap_pct = (predicted_s - goal.target_time_s) / goal.target_time_s
 
     if gap_pct <= 0:
@@ -572,7 +574,8 @@ def _score_long_run(profile: AthleteProfile, goal: TrainingGoal) -> ReadinessCom
             detail="Short distance — long run preparation is not a limiting factor.",
         )
 
-    if profile.training_pattern is None:
+    pattern = profile.sport_profile(RUNNING).training_pattern
+    if pattern is None:
         return ReadinessComponent(
             name="Long Run Readiness",
             score=0.5,
@@ -580,7 +583,7 @@ def _score_long_run(profile: AthleteProfile, goal: TrainingGoal) -> ReadinessCom
             detail="No training pattern data to assess long run readiness.",
         )
 
-    avg_km = profile.training_pattern.long_run_avg_km
+    avg_km = pattern.long_session_avg_distance_m / 1000
 
     for d, ready_km, caution_km in _LONG_RUN_THRESHOLDS:
         if goal.distance_m <= d + 500:

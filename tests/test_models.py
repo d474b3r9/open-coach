@@ -8,6 +8,7 @@ import pytest
 from pydantic import ValidationError
 
 from open_coach.models import (
+    ActivityCache,
     AdaptiveRecommendation,
     AthleteProfile,
     FeedbackLog,
@@ -17,6 +18,7 @@ from open_coach.models import (
     PlannedWorkout,
     RaceReadiness,
     RecoverySignal,
+    SportProfile,
     TrainingConstraints,
     TrainingGoal,
     TrainingPlan,
@@ -25,6 +27,7 @@ from open_coach.models import (
     WorkoutRegistry,
     WorkoutUpload,
 )
+from open_coach.sports.base import FitnessMarker, Volume
 
 
 def _pr(label="5K", **kwargs) -> PersonalRecord:
@@ -32,7 +35,6 @@ def _pr(label="5K", **kwargs) -> PersonalRecord:
         "distance_label": label,
         "distance_m": 5000.0,
         "time_s": 1500.0,
-        "pace_sec_per_km": 300.0,
         "activity_id": 1,
         "date": date(2026, 5, 1),
     }
@@ -49,22 +51,25 @@ class TestSchemaVersionDefaults:
         [
             AthleteProfile(),
             GoalsConfig(),
-            TrainingConstraints(),
             FeedbackLog(period="2026-Q3"),
-            WorkoutRegistry(),
+            ActivityCache(),
         ],
     )
+    def test_sport_agnostic_models_default_to_2(self, model):
+        assert model.schema_version == 2
+
+    @pytest.mark.parametrize("model", [TrainingConstraints(), WorkoutRegistry()])
     def test_defaults_to_1(self, model):
         assert model.schema_version == 1
 
-    def test_training_plan_defaults_to_1(self):
+    def test_training_plan_defaults_to_2(self):
         plan = TrainingPlan(
             name="p",
-            goal=TrainingGoal(distance_m=10000),
+            goal=TrainingGoal(sport="running", distance_m=10000),
             start_date=date(2026, 1, 5),
             end_date=date(2026, 3, 1),
         )
-        assert plan.schema_version == 1
+        assert plan.schema_version == 2
         assert plan.status == "active"
         assert plan.weeks == []
 
@@ -75,11 +80,11 @@ class TestSchemaVersionDefaults:
 class TestLiteralFields:
     def test_goal_priority_accepts_abc(self):
         for p in ("A", "B", "C"):
-            assert TrainingGoal(distance_m=5000, priority=p).priority == p
+            assert TrainingGoal(sport="running", distance_m=5000, priority=p).priority == p
 
     def test_goal_priority_rejects_other(self):
         with pytest.raises(ValidationError):
-            TrainingGoal(distance_m=5000, priority="D")  # type: ignore[arg-type]
+            TrainingGoal(sport="running", distance_m=5000, priority="D")  # type: ignore[arg-type]
 
     def test_injury_severity_rejects_invalid(self):
         with pytest.raises(ValidationError):
@@ -97,17 +102,17 @@ class TestLiteralFields:
 
     def test_feedback_perceived_effort_rejects_invalid(self):
         with pytest.raises(ValidationError):
-            WorkoutFeedback(date=date.today(), perceived_effort="impossible")  # type: ignore[arg-type]
+            WorkoutFeedback(date=date.today(), workout_type="easy", perceived_effort="impossible")  # type: ignore[arg-type]
 
     def test_feedback_feeling_rejects_invalid(self):
         with pytest.raises(ValidationError):
-            WorkoutFeedback(date=date.today(), feeling="meh")  # type: ignore[arg-type]
+            WorkoutFeedback(date=date.today(), workout_type="easy", feeling="meh")  # type: ignore[arg-type]
 
     def test_plan_status_rejects_invalid(self):
         with pytest.raises(ValidationError):
             TrainingPlan(
                 name="p",
-                goal=TrainingGoal(distance_m=10000),
+                goal=TrainingGoal(sport="running", distance_m=10000),
                 start_date=date(2026, 1, 5),
                 end_date=date(2026, 3, 1),
                 status="paused",  # type: ignore[arg-type]
@@ -146,7 +151,7 @@ class TestLiteralFields:
         with pytest.raises(ValidationError):
             AthleteProfile(resting_hr=-5)
         with pytest.raises(ValidationError):
-            AthleteProfile(vdot=-1.0)
+            FitnessMarker(metric="vdot", value=-1.0)
         with pytest.raises(ValidationError):
             AthleteProfile(weight_kg=0)
 
@@ -157,8 +162,9 @@ class TestLiteralFields:
 class TestDefaultFactories:
     def test_profile_pr_lists_are_independent(self):
         a, b = AthleteProfile(), AthleteProfile()
-        a.personal_records.append(_pr())
-        assert b.personal_records == []
+        a.sport_profile("running", create=True).personal_records.append(_pr())
+        assert b.sports == {}
+        assert b.sport_profile("running").personal_records == []
 
     def test_week_workout_lists_are_independent(self):
         a = TrainingWeek(week_number=1, start_date=date(2026, 1, 5))
@@ -203,20 +209,22 @@ class TestRoundTrip:
     def test_training_plan_json_round_trip(self):
         plan = TrainingPlan(
             name="Marathon",
-            goal=TrainingGoal(distance_m=42195, race_date=date(2026, 10, 4), priority="A"),
+            goal=TrainingGoal(
+                sport="running", distance_m=42195, race_date=date(2026, 10, 4), priority="A"
+            ),
             start_date=date(2026, 6, 1),
             end_date=date(2026, 10, 4),
             weeks=[
                 TrainingWeek(
                     week_number=1,
                     start_date=date(2026, 6, 1),
-                    planned_volume_km=40.0,
+                    planned_volume={"running": Volume(distance_m=40000.0)},
                     workouts=[
                         PlannedWorkout(
                             date=date(2026, 6, 2),
                             workout_type="easy",
                             description="Easy 8k",
-                            target_distance_km=8.0,
+                            target_distance_m=8000.0,
                         )
                     ],
                 )
@@ -228,11 +236,16 @@ class TestRoundTrip:
 
     def test_athlete_profile_json_round_trip(self):
         profile = AthleteProfile(
-            vdot=48.2,
-            vdot_source="10K 42:00 on 2026-05-01",
             max_hr=190,
             resting_hr=48,
-            personal_records=[_pr()],
+            sports={
+                "running": SportProfile(
+                    fitness=FitnessMarker(
+                        metric="vdot", value=48.2, source="10K 42:00 on 2026-05-01"
+                    ),
+                    personal_records=[_pr()],
+                )
+            },
             ctl=45.0,
             atl=50.0,
             tsb=-5.0,

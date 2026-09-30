@@ -9,6 +9,7 @@ Provides:
     make_goal    — TrainingGoal factory
     make_profile — AthleteProfile factory (with TrainingPattern)
     make_planned_workout — PlannedWorkout factory
+    running_profile — AthleteProfile factory carrying only a running VDOT
     storage      — fixture: real CoachStorage isolated in tmp_path
 """
 
@@ -24,6 +25,7 @@ from open_coach.models import (
     FeedbackLog,
     GoalsConfig,
     PlannedWorkout,
+    SportProfile,
     TrainingConstraints,
     TrainingGoal,
     TrainingPattern,
@@ -32,6 +34,8 @@ from open_coach.models import (
     WorkoutFeedback,
 )
 from open_coach.providers.garmin import GarminProvider
+from open_coach.sports.base import FitnessMarker
+from open_coach.sports.running import pace as running_pace
 from open_coach.storage import CoachStorage
 
 if TYPE_CHECKING:
@@ -198,6 +202,7 @@ def make_goal(
         else:
             race_date = date.today() + timedelta(days=30)
     return TrainingGoal(
+        sport="running",
         race_name=race_name,
         distance_m=distance_m,
         race_date=race_date,
@@ -217,19 +222,29 @@ def make_profile(
 ) -> AthleteProfile:
     """Build an AthleteProfile with a plausible TrainingPattern."""
     pattern = TrainingPattern(
-        weekly_volume_km=weekly_volume_km,
+        weekly_distance_m=weekly_volume_km * 1000,
         weekly_frequency=4.0,
-        long_run_avg_km=long_run_avg,
-        easy_pace_avg_sec_per_km=330.0,
+        long_session_avg_distance_m=long_run_avg * 1000,
+        easy_intensity=running_pace(330.0),
         computed_at=datetime.now(),
     )
+    fitness = FitnessMarker(metric="vdot", value=vdot) if vdot is not None else None
     return AthleteProfile(
-        vdot=vdot,
         ctl=ctl,
         atl=atl,
         tsb=tsb,
-        training_pattern=pattern,
+        sports={"running": SportProfile(fitness=fitness, training_pattern=pattern)},
         onboarding_complete=True,
+    )
+
+
+def running_profile(vdot: float, source: str | None = None, **kwargs: Any) -> AthleteProfile:
+    """Build an AthleteProfile carrying a running VDOT (other fields via kwargs)."""
+    return AthleteProfile(
+        sports={
+            "running": SportProfile(fitness=FitnessMarker(metric="vdot", value=vdot, source=source))
+        },
+        **kwargs,
     )
 
 
@@ -246,8 +261,8 @@ def make_planned_workout(
         date=date.today() + timedelta(days=offset_days),
         workout_type=wtype,
         description=description if description is not None else f"{wtype} run",
-        target_distance_km=dist,
-        target_pace_sec_per_km=pace,
+        target_distance_m=dist * 1000 if dist is not None else None,
+        target_intensity=running_pace(pace),
         **kwargs,
     )
 
@@ -284,7 +299,7 @@ def make_plan(
         weeks.append(TrainingWeek(week_number=i + 1, start_date=w_start, workouts=workouts))
     return TrainingPlan(
         name=name,
-        goal=TrainingGoal(distance_m=10000, race_date=end),
+        goal=TrainingGoal(sport="running", distance_m=10000, race_date=end),
         start_date=start,
         end_date=end,
         weeks=weeks,

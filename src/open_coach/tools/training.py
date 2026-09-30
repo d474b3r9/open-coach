@@ -8,6 +8,7 @@ from typing import Any
 from fastmcp import Context
 
 from open_coach.server import mcp
+from open_coach.sports.running import vdot_of
 from open_coach.tools._common import (
     LOAD_WINDOW_DAYS,
     get_watch,
@@ -85,8 +86,8 @@ async def get_training_zones(
     if vdot is None:
         if race_distance_m and race_time_s:
             vdot = calculate_vdot(race_distance_m, race_time_s)
-        elif profile and profile.vdot:
-            vdot = profile.vdot
+        elif (profile_vdot := vdot_of(profile)) is not None:
+            vdot = profile_vdot
         else:
             return {"error": "No VDOT available. Provide race data or run onboarding first."}
 

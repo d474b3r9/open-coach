@@ -92,7 +92,7 @@ def _make_activity(
         duration_s=duration_s,
         avg_hr=avg_hr,
         max_hr=max_hr,
-        avg_pace_sec_per_km=avg_pace,
+        sport="running",
     )
 
 

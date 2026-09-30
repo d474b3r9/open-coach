@@ -42,12 +42,12 @@ STRINGS: dict[str, dict[Language, str]] = {
     "md.overview": {"en": "## Overview", "fr": "## Vue d'ensemble"},
     "md.period": {"en": "- Period: **{start} → {end}**", "fr": "- Période : **{start} → {end}**"},
     "md.weeks_total": {
-        "en": "- {weeks} weeks, {km:.0f} km total",
-        "fr": "- {weeks} semaines, {km:.0f} km cumulés",
+        "en": "- {weeks} weeks, {vol} total",
+        "fr": "- {weeks} semaines, {vol} cumulés",
     },
     "md.volume": {
-        "en": "- Volume: start **{start:.0f} km/wk**, peak **{peak:.0f} km/wk**",
-        "fr": "- Volume : début **{start:.0f} km/sem**, pic **{peak:.0f} km/sem**",
+        "en": "- Volume: start **{start}/wk**, peak **{peak}/wk**",
+        "fr": "- Volume : début **{start}/sem**, pic **{peak}/sem**",
     },
     "md.phases": {"en": "- Phases: {phases}", "fr": "- Phases : {phases}"},
     "md.status": {"en": "- Status: `{status}`", "fr": "- Statut : `{status}`"},
@@ -56,21 +56,21 @@ STRINGS: dict[str, dict[Language, str]] = {
     "md.updated_at": {"en": "*Last updated: {ts}*", "fr": "*Dernière mise à jour : {ts}*"},
     "md.created_at": {"en": "*Created: {ts}*", "fr": "*Créé le : {ts}*"},
     "md.week_header": {
-        "en": "### Wk {n} — {phase} ({start}) — {km:.0f} km planned",
-        "fr": "### Sem {n} — {phase} ({start}) — {km:.0f} km prévus",
+        "en": "### Wk {n} — {phase} ({start}) — {vol} planned",
+        "fr": "### Sem {n} — {phase} ({start}) — {vol} prévus",
     },
     "md.week_done": {
-        "en": "  — *done: {km:.0f} km, rate {rate:.0f}%*",
-        "fr": "  — *réalisé : {km:.0f} km, taux {rate:.0f}%*",
+        "en": "  — *done: {vol}, rate {rate:.0f}%*",
+        "fr": "  — *réalisé : {vol}, taux {rate:.0f}%*",
     },
     "md.table_header": {
         "en": (
-            "| ✓ | Day | Type | Distance | Pace | Details |\n"
-            "|---|-----|------|----------|------|---------|\n"
+            "| ✓ | Day | Type | Distance | Target | Details |\n"
+            "|---|-----|------|----------|--------|---------|\n"
         ),
         "fr": (
-            "| ✓ | Jour | Type | Distance | Allure | Détail |\n"
-            "|---|------|------|----------|--------|--------|\n"
+            "| ✓ | Jour | Type | Distance | Cible | Détail |\n"
+            "|---|------|------|----------|-------|--------|\n"
         ),
     },
     # ── generated sessions (plan_generator) ──
