@@ -105,7 +105,7 @@ See `AGENTS.md` § "Adding a new MCP tool or resource" — concise 5-step recipe
 
 ### Adding a coaching rule
 
-Methodology rules live in `.agents/skills/coaching-rules/`. Add the rule to `SKILL.md` (numbered section) or to the relevant file under `references/`. Keep the rule generic: athlete-specific data belongs in `plans/athlete-profile.md`, read at runtime. Run `uv run python scripts/audit_docs.py` before committing.
+Methodology rules live in `.agents/skills/coaching-rules/`. Add the rule to the file under `references/` that matches its topic (`methodology.md`, `dsl-conventions.md`, `anti-patterns.md`), as a named section listed in that file's `## Contents`; `SKILL.md` only holds the reading cycle, the journal rules and the index of those files. Keep the rule generic: athlete-specific data belongs in `plans/athlete-profile.md`, read at runtime. Run `uv run python scripts/audit_docs.py` before committing.
 
 ### Adding a workflow skill
 
