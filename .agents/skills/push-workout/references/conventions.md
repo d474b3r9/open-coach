@@ -1,5 +1,14 @@
 # Workout construction conventions
 
+## Contents
+
+- Pace rules
+- Daniels zones by VDOT (target paces)
+- Recovery intervals
+- Template session structures
+- Garmin limits
+- Common mistakes to avoid
+
 Reference for the push-workout skill. These rules prevent hallucinations
 and ensure sessions are consistent with the Daniels-Gilbert method.
 

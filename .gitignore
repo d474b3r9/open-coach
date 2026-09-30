@@ -66,7 +66,7 @@ plans/*
 # Note: .claude/settings.json (shared) is versioned
 
 # ── Personal: local config for the hooks ─────────────────────────────────────
-# The hooks in .claude/hooks/ and the skills in .claude/skills/ are VERSIONED
+# The hooks in .claude/hooks/ and the skills in .agents/skills/ are VERSIONED
 # and 100 % generic. Any personal data (race keywords, files to watch, paths)
 # lives in .claude/local/ (read at runtime with a graceful fallback).
 # See .claude/local.example/README.md and CONTRIBUTING.md § Data separation policy.

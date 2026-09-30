@@ -1,7 +1,9 @@
 ---
 name: entraineur
-description: Coaching methodology rules for running (Daniels VDOT, 80/20, periodization, recovery, nutrition, anti-patterns, DSL workout conventions). Use when validating a coaching decision against the methodology — NOT for executing an MCP workflow (that's what the workflow skills like plan-training, push-workout, race-ready are for). Trigger on "rule", "methodology", "convention", "anti-pattern", "coaching principle", "règle", "méthodo", "principe coaching", or when the user asks "is this VDOT-correct?", "does this follow the rules?", "est-ce conforme à la méthodo ?".
-version: 3.0.0
+description: Coaching methodology rules for running — Daniels VDOT paces, 80/20 intensity, periodization, recovery, nutrition, anti-patterns and watch-workout (DSL) conventions. Use before any coaching decision (plan, session, pace, recovery advice) and when the user asks whether something follows the rules — "is this VDOT-correct?", "règle", "méthodo", "principe coaching", "est-ce conforme à la méthodo ?". Holds rules only; the workflow skills (onboard, plan-training, push-workout, analyze-run, daily-check, race-ready) perform the actions.
+compatibility: Requires the open-coach MCP server (watch data, training plans, coaching guides).
+metadata:
+  version: "3.1.0"
 ---
 
 # Skill `entraineur` — coaching rules (reference)
@@ -16,23 +18,23 @@ To perform a concrete action (generate a plan, push a workout, debrief a run, et
 
 Before reading any rule, check that the athlete profile exists:
 
-1. **If `plans/athlete-profile.md` AND `plans/training-journal.md` both exist** → read both (parallel multi-tool call), then apply the rules below **with** the values found in the profile.
+1. **If `plans/athlete-profile.md` AND `plans/training-journal.md` both exist** → read both, then apply the rules below **with** the values found in the profile.
 2. **If either is missing** → ask the user to run `uv run python scripts/setup_local.py` and then edit the profile with their values (VDOT, calendar, constraints…).
 3. **If you have no file access** (desktop / web chat client using only the MCP server) → skip the markdown files and work from `get_coaching_context`; the stored profile, goals, constraints and recent feedback carry the essentials.
 
 ## Reading cycle for a coaching answer
 
-1. **Read** `plans/athlete-profile.md` (profile) + `plans/training-journal.md` (history, last 30 entries take priority) in parallel
+1. **Read** `plans/athlete-profile.md` (profile) + `plans/training-journal.md` (history, last 30 entries take priority)
 2. **Identify** in the profile: VDOT, physical constraints, race calendar, nutrition preferences, week structure, personal anti-patterns
 3. **Spot** in the journal: recent tests (VDOT calibration), active insights (implicit constraints), recent decisions (consistency to maintain), missed sessions (caution signal)
-4. **Apply** the rules below + references (`references/`), cross-checked against the profile values
+4. **Apply** the rules below + the reference files listed next, cross-checked against the profile values
 5. **Append** to the journal at the end of the task if a significant event occurs (see § "Journal update")
 
 ## Available rules (sub-files loaded on demand)
 
-- `references/methodology.md` — universal principles: Daniels VDOT, 80/20, CTL progression, recovery, plan structure, tests, safeguards
-- `references/dsl-conventions.md` — strict rules for generating a `DSLWorkout` pushed to Garmin (lap_button, easy run = 1 block, ±5 s pace target, warmup ≥ 15 min, etc.) + French / English glossary
-- `references/anti-patterns.md` — patterns to NEVER do (starter gel, duplicate tests, Garmin SSO retry, hardcoded pace, etc.) + strength / tendon / ankle protocols + race nutrition
+- [references/methodology.md](references/methodology.md) (MCP: `get_coaching_guide("methodology")`) — universal principles: Daniels VDOT, 80/20, CTL progression, recovery, plan structure, tests, safeguards
+- [references/dsl-conventions.md](references/dsl-conventions.md) (MCP: `get_coaching_guide("dsl-conventions")`) — strict rules for generating a `DSLWorkout` pushed to the watch (lap_button, easy run = 1 block, ±5 s pace target, warmup ≥ 15 min, etc.) + French / English glossary
+- [references/anti-patterns.md](references/anti-patterns.md) (MCP: `get_coaching_guide("anti-patterns")`) — patterns to NEVER do (starter gel, duplicate tests, Garmin SSO retry, hardcoded pace, etc.) + strength / tendon / ankle protocols + race nutrition
 
 Load a sub-file only if the rule it covers is relevant to the question asked.
 

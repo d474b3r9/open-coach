@@ -55,7 +55,7 @@ def _resolve_memory_dir() -> Path | None:
 
 
 MEMORY_DIR = _resolve_memory_dir()
-SKILL_FILE = REPO / ".claude" / "skills" / "entraineur" / "SKILL.md"
+SKILL_FILE = REPO / ".agents" / "skills" / "entraineur" / "SKILL.md"
 LEARNINGS_FILE = REPO / "LEARNINGS.md"
 
 
@@ -330,7 +330,17 @@ _LEAK_RE = re.compile("|".join(_LEAK_PATTERNS), re.IGNORECASE)
 # Top-level paths to scan (relative to REPO) when git is unavailable. plans/ is
 # gitignored and contains private data on purpose. The audit script scans
 # itself too: its default patterns are structural, so they must not self-match.
-_LEAK_SCAN_DIRS = [".claude", ".cursor", ".gemini", ".github", "docs", "scripts", "src", "tests"]
+_LEAK_SCAN_DIRS = [
+    ".agents",
+    ".claude",
+    ".cursor",
+    ".gemini",
+    ".github",
+    "docs",
+    "scripts",
+    "src",
+    "tests",
+]
 _LEAK_SCAN_GLOBS_ROOT = ["*.md", "*.toml", "*.json", "*.cfg", "*.ini", "*.yaml", "*.yml"]
 # The pattern unit test holds deliberate fake leaks as fixtures.
 _LEAK_EXCLUDE_FILES = {"test_audit_leak_patterns.py"}

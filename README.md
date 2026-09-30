@@ -45,6 +45,8 @@ uv sync
 
 ## Local setup after cloning
 
+> **Windows**: the skills live in `.agents/skills/` and `.claude/skills` is a symlink to them. Run `git config --global core.symlinks true` (with Developer Mode on) **before cloning**, otherwise Claude Code sees no skills. Other clients are unaffected. Details and other limits: [`docs/mcp-clients.md`](docs/mcp-clients.md#skills-standards-followed-and-known-limits).
+
 After installing dependencies, run the onboarding script once. It copies versioned templates into the gitignored locations the skills and hooks expect at runtime:
 
 ```bash
@@ -194,7 +196,7 @@ Open your MCP client in this repo and try:
 
 Prompts work just as well in French (*"Analyse mes 5 dernières séances"*) — the coach answers in the language you use.
 
-All workflows live in [`.claude/skills/`](.claude/skills/) (one per use case: `onboard`, `plan-training`, `push-workout`, `analyze-run`, `daily-check`, `race-ready`), next to the methodology rules in [`.claude/skills/entraineur/`](.claude/skills/entraineur/). Claude Code loads them as skills; other clients get them as MCP prompts of the same name (e.g. `/plan-training`) or through the `get_coaching_guide` tool.
+All workflows live in [`.agents/skills/`](.agents/skills/) (one per use case: `onboard`, `plan-training`, `push-workout`, `analyze-run`, `daily-check`, `race-ready`), next to the methodology rules in [`.agents/skills/entraineur/`](.agents/skills/entraineur/). They follow the [Agent Skills](https://agentskills.io) open standard, so Codex, Gemini CLI, Cursor, Copilot and Claude Code (through the `.claude/skills` symlink) load them natively; any other MCP client gets them from the server as `skill://` resources, MCP prompts of the same name (e.g. `/plan-training`) or the `get_coaching_guide` tool. Standards followed and known limits (Windows symlink, guide loading left to the model): [`docs/mcp-clients.md`](docs/mcp-clients.md#skills-standards-followed-and-known-limits).
 
 For an in-depth walkthrough (architecture rationale, extension guide, FAQ), see [`docs/getting-started.md`](docs/getting-started.md).
 

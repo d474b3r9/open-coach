@@ -1,5 +1,18 @@
 # DSL workout conventions (watch push)
 
+## Contents
+
+- Rule A — Easy run = ONE block, no warmup/cooldown
+- Rule B — Warmups/Cooldowns = `lap_button` by default
+- Rule B-bis — Volume + time target IN THE NAME (corollary of B)
+- Rule B-ter — Warmup MINIMUM 15 min on a quality session
+- Rule B-quater — Pace target = coaching target ±5 s (watch alerts)
+- Rule D — End of session = ALWAYS a lap press (never an automatic end)
+- Rule E — `sync_upcoming_workouts` never guesses a structure
+- Rule C — Classification before build
+- Example: easy run + strides
+- French / English equivalents
+
 Reference loaded by the `entraineur` skill when a `DSLWorkout` must be generated to push to the watch. Strict rules — empirically validated preferences (can be overridden in the athlete profile § "Preferences" if the athlete gives different feedback).
 
 This applies to every flow that pushes to Garmin: `build_and_push_workout`, `sync_upcoming_workouts`, ad-hoc scripts, `generate_training_plan`.

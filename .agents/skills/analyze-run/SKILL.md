@@ -1,12 +1,14 @@
 ---
 name: analyze-run
-version: 1.0.0
-description: Debrief a completed run (pace, HR, splits, training effect, cardiac drift). Use when the user asks to review a workout, "how was my run", "analyse ma sortie", "debriefe ma séance".
+description: Debriefs a completed run against the plan and the training zones (pace, heart rate, splits, cardiac drift, training effect). Use when the athlete asks to review a workout or a race — "how was my run", "analyse ma sortie", "débriefe ma séance".
+compatibility: Requires the open-coach MCP server (watch data, training plans, coaching guides).
+metadata:
+  version: "1.0.0"
 ---
 
 # analyze-run
 
-MCP workflow to analyse a completed run. For the interpretation rules (zones, drift, VDOT recalibration), see the `entraineur` methodology → `get_coaching_guide("methodology")`.
+Workflow (tools of the open-coach MCP server) to analyse a completed run. For the interpretation rules (zones, drift, VDOT recalibration), see the `entraineur` methodology → `get_coaching_guide("methodology")`.
 
 ## Steps
 

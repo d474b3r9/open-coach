@@ -1,7 +1,9 @@
 ---
 name: extract-transcript
-description: Extract YouTube video transcript(s) into plans/references/ as markdown so the entraineur skill can reference external coaching methodologies. Trigger when the user pastes a YouTube URL with intent to import its content (extract, transcript, method, methodology, video, "what do you think", "apply this method", méthode, méthodologie, vidéo, "qu'en penses-tu", "applique cette méthode") OR explicitly invokes via /extract-transcript. Accepts ONE OR SEVERAL URLs in one call.
-version: 1.2.0
+description: Extracts YouTube video transcripts into plans/references/ as markdown so the entraineur methodology can cite external coaching methods. Use when the user pastes one or more YouTube URLs to import, summarize or apply a method ("extract", "transcript", "apply this method", "what do you think", "méthode", "vidéo", "qu'en penses-tu", "applique cette méthode"), or invokes /extract-transcript.
+compatibility: Requires a shell, uv and network access.
+metadata:
+  version: "1.2.0"
 ---
 
 # Skill `extract-transcript` — Import YouTube video transcripts
@@ -26,7 +28,7 @@ Run the script:
 
 ```bash
 # bash / zsh
-uv run python .claude/skills/extract-transcript/scripts/fetch_transcript.py <url1> [<url2> ...]
+uv run python .agents/skills/extract-transcript/scripts/fetch_transcript.py <url1> [<url2> ...]
 ```
 
 ```powershell
@@ -52,7 +54,7 @@ uv sync --extra transcripts
 # or, Windows venv: .venv\Scripts\pip.exe install "youtube-transcript-api>=1.2,<2.0"
 ```
 
-### Step 2 — Distillation (read by Claude)
+### Step 2 — Distillation (read by the agent)
 
 For each freshly created transcript:
 

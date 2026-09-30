@@ -1,12 +1,14 @@
 ---
 name: race-ready
-version: 1.0.0
-description: Race-day briefing — readiness assessment, time predictions, pacing strategy (calls get_race_readiness, get_race_predictions, get_pacing_strategy). Use when the user asks "am I ready for my race", "stratégie de course", "pacing plan".
+description: Produces a race briefing — readiness score, time prediction and a split-by-split pacing strategy. Use when the athlete asks whether they are ready, for a race-day plan or a target pace — "am I ready for my race", "pacing plan", "stratégie de course", "allure cible".
+compatibility: Requires the open-coach MCP server (watch data, training plans, coaching guides).
+metadata:
+  version: "1.0.0"
 ---
 
 # race-ready
 
-MCP workflow to produce a race briefing (readiness, prediction, pacing). For the interpretation rules (TSB, CTL, completion %, taper), see the `entraineur` methodology → `get_coaching_guide("methodology")`.
+Workflow (tools of the open-coach MCP server) to produce a race briefing (readiness, prediction, pacing). For the interpretation rules (TSB, CTL, completion %, taper), see the `entraineur` methodology → `get_coaching_guide("methodology")`.
 
 ## Steps
 

@@ -18,8 +18,13 @@ Gemini CLI, VS Code, Claude Desktop…), not only Claude Code.
   server instructions (`instructions.py`).
 - Workflow guides exposed as MCP prompts (`onboard`, `plan-training`,
   `push-workout`, `analyze-run`, `daily-check`, `race-ready`), and every guide
-  (methodology included) through the `get_coaching_guide` tool and the
-  `coach://guide/{name}` resource. The wheel bundles the guides.
+  (methodology included) through the `get_coaching_guide` tool and
+  `skill://<name>/SKILL.md` resources (official MCP Skills extension URIs,
+  SEP-2640). The guide catalog (name + what/when) is embedded in the server
+  instructions and in the `get_coaching_guide` description, so models pick
+  the right guide unprompted. The wheel bundles the guides.
+- `tests/test_skills_spec.py`: every skill is checked against the Agent
+  Skills specification (frontmatter, size, one-level references, TOC).
 - Read-only tools mirroring the resources, for clients that ignore MCP
   resources: `get_coaching_context`, `get_active_plan`, `get_archived_plan`.
 - `next_steps` in the results of `generate_training_plan`,
@@ -51,9 +56,15 @@ Gemini CLI, VS Code, Claude Desktop…), not only Claude Code.
 - `save_training_plan` accepts the plan as an object (full JSON schema
   published) or as a JSON string; `upload_workout` / `build_and_push_workout`
   accept a `DSLWorkout` object as well as JSON / text DSL.
-- Workflow skills moved from `skills/` to `.claude/skills/`: Claude Code never
-  loaded them from `skills/`. They now name tools (`get_coaching_context`,
+- Skills moved to `.agents/skills/` (Agent Skills open standard, read
+  natively by Codex, Gemini CLI, Cursor, Copilot); `.claude/skills` is a
+  symlink to it for Claude Code. The workflow skills used to sit in `skills/`,
+  where no client loaded them. They now name tools (`get_coaching_context`,
   `get_coaching_guide`) instead of bare `coach://` reads.
+- Skill frontmatter follows the spec: `version` moved under `metadata`,
+  `compatibility` added, descriptions rewritten (third person, what + when,
+  EN/FR triggers, vendor-neutral). Long references gained a `## Contents`
+  section; `plan-training` and `push-workout` open with a checklist.
 - `get_activity_details`, `get_training_status`, `list_watch_workouts` return
   compacted payloads by default (`compact=False` restores the raw payload).
 - **Licence**: Open Coach is now free software under the **AGPL-3.0**
