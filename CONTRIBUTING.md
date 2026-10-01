@@ -26,6 +26,15 @@ By participating you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
 
 6. **Open a pull request** and fill in the template. On your first PR, the CLA bot asks you to accept the [Contributor License Agreement](CLA.md) by posting a comment; it covers all your future contributions.
 
+### Issues and epics
+
+- **Finding work**: `good first issue` marks small, well-scoped issues for a first contribution; `help wanted` marks everything open to contributors. Comment on an issue to claim it before you start, so two people don't work on the same thing.
+- **Epics** (label `epic`) are umbrella issues for a larger goal. Their work is split into **sub-issues**, shown with a progress bar on the epic. A sub-issue that needs another one first is marked "blocked by" it: start with the unblocked ones.
+- **Proposing a sub-issue**: use the **Part of an epic** template. A maintainer attaches it to the epic.
+- **One pull request per sub-issue**, when possible. Link it in the PR description:
+  - `Closes #<sub-issue>` for the sub-issue it completes (GitHub closes it on merge);
+  - `Part of #<epic>` to show the epic it belongs to. Never `Closes #<epic>`: a maintainer closes the epic once its last sub-issue is done.
+
 ### Why a CLA?
 
 Open Coach is licensed under the **AGPL-3.0**: it stays free for everyone, and anyone who builds on it, including as an online service, must publish their changes under the same licence. The project is also **dual-licensed**: the maintainer may offer commercial terms (for example a hosted service) to fund its development. The CLA gives the maintainer the right to include your contribution in those offers; you keep your copyright, and your contribution always remains available to everyone under the AGPL-3.0. See [CLA.md](CLA.md).

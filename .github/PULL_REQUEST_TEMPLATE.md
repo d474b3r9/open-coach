@@ -1,6 +1,9 @@
 ## What and why
 
-<!-- What this PR changes and the problem it solves. Link the issue if any. -->
+<!-- What this PR changes and the problem it solves. -->
+
+<!-- Linked issue: "Closes #<issue>" for the issue this PR completes, plus "Part of #<epic>" when it belongs to an epic. Never "Closes" an epic (see CONTRIBUTING.md, "Issues and epics"). -->
+Closes #
 
 ## How it was tested
 

@@ -1,0 +1,43 @@
+name: Part of an epic
+description: One piece of work inside an existing epic (a maintainer attaches it as a sub-issue)
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Open epics: [label `epic`](https://github.com/d474b3r9/open-coach/issues?q=is%3Aopen+label%3Aepic). Keep the scope small enough for one pull request.
+  - type: input
+    id: epic
+    attributes:
+      label: Epic
+      placeholder: "#11"
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+      description: What this issue changes, and the files or modules to start from.
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when
+      description: Checkable criteria (tests, behaviour, docs) that close the issue.
+      value: |
+        - [ ]
+        - [ ] `uv run pre-commit run --all-files` and `uv run pytest` pass
+    validations:
+      required: true
+  - type: input
+    id: blocked
+    attributes:
+      label: Blocked by
+      description: Issues that must land first, if any.
+      placeholder: "#12"
+  - type: checkboxes
+    id: claim
+    attributes:
+      label: Taking it
+      options:
+        - label: I would like to work on this issue
