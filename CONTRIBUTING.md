@@ -2,11 +2,11 @@
 
 Open Coach is a free, community-driven coach for athletes. Contributions of every kind are welcome: bug reports, coaching methodology, new watch platforms (COROS, Suunto, Polar…), translations, docs and code.
 
-By participating you agree to follow the [Code of Conduct](CODE_OF_CONDUCT.md).
+By participating you agree to follow the [Code of Conduct](.github/CODE_OF_CONDUCT.md).
 
 ## How to contribute
 
-1. **Open an issue first** for anything non-trivial (new tool, new provider, new coaching rule), so the approach can be agreed before you write code. Security problems go through a [private advisory](SECURITY.md), never a public issue.
+1. **Open an issue first** for anything non-trivial (new tool, new provider, new coaching rule), so the approach can be agreed before you write code. Security problems go through a [private advisory](.github/SECURITY.md), never a public issue.
 2. **Fork, then branch** from `main`.
 3. **Set up** the project:
 

@@ -257,7 +257,7 @@ State persists in `~/.open-coach/` (profile, goals, plans, feedback, registries,
 
 ## Contributing
 
-Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) (setup, tests, where things go, personal-data rules) and the [Code of Conduct](CODE_OF_CONDUCT.md). First-time contributors are asked to accept the [CLA](CLA.md) once. Security problems: see [SECURITY.md](SECURITY.md).
+Issues and pull requests are welcome. Start with [CONTRIBUTING.md](CONTRIBUTING.md) (setup, tests, where things go, personal-data rules) and the [Code of Conduct](.github/CODE_OF_CONDUCT.md). First-time contributors are asked to accept the [CLA](CLA.md) once. Security problems: see [SECURITY.md](.github/SECURITY.md).
 
 ## Author
 
