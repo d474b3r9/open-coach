@@ -16,18 +16,19 @@ Turn your watch into an AI-coached training stack. **Open Coach** (formerly `gar
 ```mermaid
 flowchart LR
     User[You] -->|"ask"| Client[Any MCP client<br/>Claude Code, Cursor, Codex, Gemini CLI…]
-    Client -->|get_coaching_guide / skill| Rules[coaching-rules<br/>methodology rules]
-    Client -->|MCP tools + prompts| Server[FastMCP server]
-    Server -->|serves| Entraineur
-    Server <-->|OAuth2| Garmin[Garmin Connect]
+    Client <-->|"MCP tools, prompts, resources"| Server[FastMCP server<br/>+ operating instructions]
+    Client -.->|"read natively"| Guides[Agent Skills<br/>coaching-rules • coaching-rules-running<br/>6 workflow guides]
+    Server -->|"serves over MCP"| Guides
+    Server --> Core[Sport-agnostic core<br/>Load • Recovery • Periodization]
+    Server --> Sports[Sport plugins<br/>running: VDOT • Zones • Plans • Predictions]
+    Server <--> Provider[Watch provider layer]
+    Provider <-->|"activities, health, push workouts"| Garmin[Garmin Connect]
     Server <-->|OAuth2| Strava[Strava API]
-    Server --> Storage[(~/.open-coach/<br/>JSON state)]
-    Server --> Compute[VDOT • Zones • Load<br/>Plans • Predictions]
-    Server -->|push workouts| Garmin
+    Server --> Storage[(~/.open-coach/<br/>JSON state, auto-migrated)]
 ```
 
 Two layers of intelligence:
-- **`coaching-rules` skill** — coaching methodology (Daniels VDOT, 80/20, periodization, recovery, anti-patterns, DSL workout conventions). Pure rules, no I/O. Read by the AI before every coaching decision — natively as a skill in Claude Code, through the `get_coaching_guide` tool / MCP prompts everywhere else.
+- **Coaching rules skills** — `coaching-rules` holds the universal methodology (80/20, load progression, recovery weeks, athlete profile and journal); each sport adds its own guide (`coaching-rules-running`: Daniels VDOT, running periodization, anti-patterns, DSL workout conventions). Pure rules, no I/O. Read by the AI before every coaching decision — natively as a skill in Claude Code, through the `get_coaching_guide` tool / MCP prompts everywhere else.
 - **MCP server** — data plane. Pure-computation modules sit behind FastMCP tools that the AI calls: a sport-agnostic core (`training_load.py`, `periodization.py`, `recovery_monitor.py`, …) and one plugin per sport under `sports/` (running today: VDOT, pace zones, plan generator, race predictor). The server also sends its operating rules (read the context first, watch-sync policy, activity-analysis rules) as MCP instructions, so every client follows them.
 
 ## Requirements
