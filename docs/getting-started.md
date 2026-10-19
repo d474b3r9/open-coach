@@ -357,6 +357,7 @@ After this, `providers/garmin_auth.py` resumes from the token cache on every sta
 - **Claude Code lists no coaching skills (Windows)** → `.claude/skills` was checked out as a text file instead of a symlink to `.agents/skills`. Enable Developer Mode, run `git config --global core.symlinks true`, then `git checkout -- .claude/skills` (or re-clone). See [`mcp-clients.md`](mcp-clients.md#skills-standards-followed-and-known-limits).
 - **A model ignores the methodology** → loading a guide is left to the model. Start with the workflow prompt (`/plan-training`…) or ask it to call `get_coaching_guide`; prefer a model with reliable tool calling.
 - **`UnicodeEncodeError` in a setup script on Windows** → cp1252 console. Set `PYTHONIOENCODING=utf-8` before running, or keep the script ASCII-only.
+- **Optional Drive sync on Windows (`rclone` not found, `bash` opens WSL, 401 during OAuth…)** → see [`optional/drive-sync.md`](optional/drive-sync.md#windows-notes).
 
 ---
 

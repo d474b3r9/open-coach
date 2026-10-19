@@ -190,7 +190,7 @@ Upload / schedule / unschedule / delete go through the provider (`GarminProvider
 
 ### Drive sync (optional, out-of-band)
 
-`scripts/drive_sync.sh` is an `rclone`-based wrapper that syncs `<repo>/plans/` bidirectionally with a Google Drive folder, and pulls Drive read-only into a local Obsidian vault. **Drive is the source of truth** in this topology; the project's `plans/` directory is bidirectional (`bisync`, last mtime wins, conflicts kept as `*.conflict-*`); Obsidian is a read-only mirror (`rclone sync` with `--backup-dir` for safety). The script is fully out-of-band of the MCP server — no Python deps, no token files in `~/.open-coach/`, no MCP coupling. Personal values come from per-machine env vars (`OPEN_COACH_DRIVE_FOLDER_ID`, `OPEN_COACH_REPO_PLANS_DIR`, `OPEN_COACH_OBSIDIAN_PLANS_DIR`, optional `OPEN_COACH_DRIVE_REMOTE`). Setup and operations: `docs/drive-sync.md`.
+`scripts/drive_sync.sh` is an `rclone`-based wrapper that syncs `<repo>/plans/` bidirectionally with a Google Drive folder, and pulls Drive read-only into a local Obsidian vault. **Drive is the source of truth** in this topology; the project's `plans/` directory is bidirectional (`bisync`, last mtime wins, conflicts kept as `*.conflict-*`); Obsidian is a read-only mirror (`rclone sync` with `--backup-dir` for safety). The script is fully out-of-band of the MCP server — no Python deps, no token files in `~/.open-coach/`, no MCP coupling. Personal values come from per-machine env vars (`OPEN_COACH_DRIVE_FOLDER_ID`, `OPEN_COACH_REPO_PLANS_DIR`, `OPEN_COACH_OBSIDIAN_PLANS_DIR`, optional `OPEN_COACH_DRIVE_REMOTE`). Setup and operations: `docs/optional/drive-sync.md`.
 
 ### Strava integration
 
