@@ -10,6 +10,7 @@ from pathlib import Path
 from open_coach.clock import as_utc, local_today, to_local, utcnow
 from open_coach.models import AthleteProfile
 from open_coach.plan_renderer import render_plan_to_markdown
+from open_coach.state_snapshot import restore_state
 from open_coach.storage import CoachStorage
 from tests.conftest import make_plan, running_profile
 
@@ -83,3 +84,27 @@ def test_plan_markdown_shows_local_time_with_its_offset() -> None:
     plan.updated_at = datetime(2026, 10, 19, 12, 0, tzinfo=UTC)
     expected = to_local(plan.updated_at).isoformat(timespec="seconds")
     assert expected in render_plan_to_markdown(plan)
+
+
+def test_restore_compares_instants_across_offsets(tmp_path: Path) -> None:
+    """11:00+02:00 is 09:00Z: the 10:00Z snapshot is newer even though 11 > 10."""
+    local = CoachStorage(base_dir=tmp_path / "b")
+    local.ensure_dirs()
+    snap = tmp_path / ".state"
+    snap.mkdir()
+    for root, stamp in (
+        (tmp_path / "b", "2026-10-19T11:00:00+02:00"),
+        (snap, "2026-10-19T10:00:00Z"),
+    ):
+        (root / "profile.json").write_text(
+            json.dumps(
+                {"schema_version": 2, "updated_at": stamp, "max_hr": 180 if root == snap else 170}
+            ),
+            encoding="utf-8",
+        )
+    (snap / "manifest.json").write_text("{}", encoding="utf-8")
+    report = restore_state(local.base_dir, snap, apply=True)
+    assert {x["path"]: x["action"] for x in report["actions"]}["profile.json"] == "restore"
+    profile = local.load_profile()
+    assert profile is not None
+    assert profile.max_hr == 180

@@ -13,6 +13,7 @@ from contextlib import asynccontextmanager
 from fastmcp import FastMCP
 
 from open_coach.instructions import SERVER_INSTRUCTIONS
+from open_coach.state_snapshot import default_snapshot_dir, snapshot_enabled
 from open_coach.storage import CoachStorage
 
 logger = logging.getLogger(__name__)
@@ -21,7 +22,7 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def coach_lifespan(_server: FastMCP) -> AsyncIterator[dict]:
     """Initialize shared state for the server lifetime."""
-    storage = CoachStorage()
+    storage = CoachStorage(snapshot_dir=default_snapshot_dir() if snapshot_enabled() else None)
     storage.ensure_dirs()
 
     from open_coach.providers import create_provider
@@ -56,6 +57,7 @@ from open_coach.tools import (  # noqa: E402, F401
     plans,
     race,
     recovery,
+    state,
     strava,
     training,
     workout,

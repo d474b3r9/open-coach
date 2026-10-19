@@ -190,8 +190,10 @@ run_obsidian_pull() {
   local backup_parent backup_dir
   backup_parent="$(dirname "$OBSIDIAN_DIR")/$(basename "$OBSIDIAN_DIR").rclone-backup"
   backup_dir="$backup_parent/$(date +%Y%m%d-%H%M%S)"
+  # .state/ holds the coach state snapshot (JSON for restore_coach_state): useful on
+  # Drive for a new machine, noise in a vault.
   rclone sync "$REMOTE_SPEC" "$OBSIDIAN_DIR" \
-    "${EXCLUDES[@]}" \
+    "${EXCLUDES[@]}" --exclude '.state/**' \
     --max-delete "$OBSIDIAN_MAX_DELETE" \
     --backup-dir "$backup_dir" \
     -v \

@@ -13,6 +13,14 @@ Gemini CLI, VS Code, Claude Desktop…), not only Claude Code.
 
 ### Added
 
+- Move the coach between machines, Windows ⇄ Linux ⇄ macOS: the state (profile,
+  goals, constraints, plans, feedback, watch uploads) is mirrored into
+  `plans/.state/` on every save (portable UTF-8 JSON) and carried by the Drive
+  sync. `restore_coach_state` previews then imports it (newer file wins, feedback
+  merged, nothing overwritten without `force`); `export_coach_state` writes it on
+  demand; the `restore-coach` workflow guides the whole move. A machine that never
+  restored an existing snapshot cannot overwrite it. Opt out with
+  `OPEN_COACH_STATE_SNAPSHOT=off`.
 - Any MCP client can run the coach: the operating rules (read the context
   first, methodology, watch sync, activity analysis, safety) are sent as MCP
   server instructions (`instructions.py`).
