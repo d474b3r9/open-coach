@@ -35,6 +35,16 @@ By participating you agree to follow the [Code of Conduct](.github/CODE_OF_CONDU
   - `Closes #<sub-issue>` for the sub-issue it completes (GitHub closes it on merge);
   - `Part of #<epic>` to show the epic it belongs to. Never `Closes #<epic>`: a maintainer closes the epic once its last sub-issue is done.
 
+### Changelog
+
+`CHANGELOG.md` has one section per pull request, newest first.
+
+- A pull request that changes what users see (a tool or parameter, a file, an environment variable, a default, a behaviour, the layout of the docs) adds its own section at the top of the list: `## #<number> — <PR title> (<YYYY-MM-DD>)`, then one bullet per change. The date is the day it is merged. The number exists once the PR is open, so add the section in a follow-up commit. If two PRs add a section at the same time, keep both when resolving the conflict.
+- Mark an incompatible change **Breaking** and say what to do about it.
+- Internal refactors, tests and CI-only changes need no section.
+- A release is a section of its own, headed by its version (`## 0.2.0 — Initial public release (2026-09-29)`), and `version` in `pyproject.toml` is bumped in the same pull request.
+- `tests/test_changelog.py` checks the structure (headings, dates, order, version).
+
 ### Why a CLA?
 
 Open Coach is licensed under the **AGPL-3.0**: it stays free for everyone, and anyone who builds on it, including as an online service, must publish their changes under the same licence. The project is also **dual-licensed**: the maintainer may offer commercial terms (for example a hosted service) to fund its development. The CLA gives the maintainer the right to include your contribution in those offers; you keep your copyright, and your contribution always remains available to everyone under the AGPL-3.0. See [CLA.md](CLA.md).
