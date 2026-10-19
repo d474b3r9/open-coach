@@ -8,6 +8,7 @@ All HTTP is mocked at the `_http_post_form` boundary — zero network.
 from __future__ import annotations
 
 import json
+import sys
 import time
 from pathlib import Path
 from typing import Any
@@ -66,7 +67,16 @@ def test_save_and_load_roundtrip(token_file: Path) -> None:
     tokens = {"access_token": "a", "refresh_token": "r", "expires_at": 123}
     save_tokens(tokens, token_file)
     assert load_tokens(token_file) == tokens
-    assert token_file.stat().st_mode & 0o777 == 0o600  # private file
+
+
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason="chmod only toggles the read-only flag on Windows; the file is private through the "
+    "ACL of the user profile",
+)
+def test_saved_token_file_is_private(token_file: Path) -> None:
+    save_tokens({"access_token": "a", "refresh_token": "r", "expires_at": 123}, token_file)
+    assert token_file.stat().st_mode & 0o777 == 0o600
 
 
 # ── get_access_token ─────────────────────────────────────────────────────────
