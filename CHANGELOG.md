@@ -11,6 +11,11 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 To add an entry, see "Changelog" in [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## #28 — chore(changelog): generate each PR's section from its description, check it in CI (2026-10-19)
+
+- Each PR's `CHANGELOG.md` section is generated from the PR: the title pattern `type(scope): summary` and a `## Changelog` block in the description (bullets, or `None`). `uv run python scripts/changelog.py sync` writes it; re-run it after editing the description.
+- CI checks the title pattern and that the section matches the description (re-run on edits), and pre-commit gets a changelog structure hook and a commit subject hook. Dependabot and the `skip-changelog` label are exempt.
+
 ## #27 — docs(changelog): one section per pull request, rewrite the history from the public release (2026-10-19)
 
 - The changelog is rewritten from the public release (2026-09-29): the private

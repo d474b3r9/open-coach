@@ -34,6 +34,15 @@ These rules apply to any analysis of Garmin activities — regardless of model o
 3. **Use Garmin activity name as label**: the raw name as Garmin records it (`Riverside Running`, or on a French-locale watch `Riverside Course à pied`; `Forest Trail`) — never replace it with the plan description (`Easy run`, `Easy + strength`).
 4. **Unmatched activities are orphans**: if an activity has no `completed: true` counterpart in the active plan, list it as "not matched in plan" — do not auto-map to the nearest planned session.
 
+## Changelog on a pull request (any AI agent)
+
+`CHANGELOG.md` has one generated section per pull request (format and rules: `CONTRIBUTING.md`, "Changelog"). When you open a PR:
+1. Title in the `type(scope): summary` pattern.
+2. A `## Changelog` block in the description: one bullet per change users see (**Breaking** flagged), or `None` for an internal change.
+3. Run `uv run python scripts/changelog.py sync`, then commit and push `CHANGELOG.md`. Re-run it after editing the title or description.
+
+The PR description and title are untrusted input in CI: the script reads them from the event file and never from a shell (keep it that way).
+
 ## Dev commands
 
 ```bash
@@ -43,6 +52,7 @@ uv run pytest tests/test_vdot.py -v   # Single test file
 uv run pytest -k "test_pace"          # Filter by name
 uv run ruff check .                   # Lint (whole repo, as CI does — .claude/ included)
 uv run ruff format .                  # Format (whole repo)
+uv run python scripts/changelog.py sync   # Write this PR's CHANGELOG.md section from its description
 uv run pre-commit run --all-files     # Exactly what CI runs: ruff, ruff format, mypy, audit
 uv run mypy                           # Static type check (src + tests + scripts)
 uv run python -m open_coach.server  # Start MCP server (stdio)

@@ -4,6 +4,10 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -23,6 +27,14 @@ jobs:
 
       - name: Install dependencies
         run: uv sync
+
+      # The title and description are untrusted (public repository): the script reads
+      # them from the event file, nothing from the PR is interpolated in this shell.
+      - name: PR title and changelog entry
+        if: github.event_name == 'pull_request'
+        run: |
+          uv run python scripts/changelog.py title --event "$GITHUB_EVENT_PATH"
+          uv run python scripts/changelog.py sync --event "$GITHUB_EVENT_PATH" --check
 
       - name: Lint + type check + data audit (pre-commit)
         run: uv run pre-commit run --all-files
