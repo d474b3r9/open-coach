@@ -168,6 +168,8 @@ Schema v2 is sport-agnostic: distances in metres, durations in seconds, targets 
 
 `clock.py` is the only module that reads the system clock (`tests/test_clock.py` fails on a bare `datetime.now()` / `date.today()` anywhere else in `src/`). Instants are stored as **aware UTC** (`UtcDatetime` model fields, serialized `...Z`), shown to the athlete in the PC's local timezone (`to_local`), and "today" is the athlete's local calendar day (`local_today()`). Calendar dates (race date, session date, feedback date) stay plain dates; the watch's `start_time_local` strings are vendor wall-clock and are left alone. A naive datetime from a file written by an older version is read as the local time of the reading PC (no schema bump: the field validator is the compatibility layer). A new timestamp field: type it `UtcDatetime`, fill it with `utcnow()`.
 
+**Encoding**: all coach JSON goes through `jsonio.py` (`read_json_text` tolerates BOM and legacy cp1252, `write_json_text` writes UTF-8 with `\n`): never call bare `read_text()` / `write_text()` on coach files (the locale encoding differs between Windows and Linux).
+
 ### State snapshot (moving between machines)
 
 `state_snapshot.py` mirrors the JSON state (`profile`, `goals`, `constraints`, `plans/active` + `plans/archive/*`, `feedback/*`, `workouts/registry`) into `<plans md dir>/.state/` from `CoachStorage` (every save; `snapshot_dir` is passed by the server lifespan, tests leave it unset). The Drive sync carries `.state/` (excluded from the Obsidian pull). Tools `export_coach_state` / `restore_coach_state` (`tools/state.py`, dry-run by default) and the `restore-coach` workflow import it on another machine, any OS.
@@ -196,7 +198,7 @@ Upload / schedule / unschedule / delete go through the provider (`GarminProvider
 
 ### Drive sync (optional, out-of-band)
 
-`scripts/drive_sync.sh` is an `rclone`-based wrapper that syncs `<repo>/plans/` bidirectionally with a Google Drive folder, and pulls Drive read-only into a local Obsidian vault. **Drive is the source of truth** in this topology; the project's `plans/` directory is bidirectional (`bisync`, last mtime wins, conflicts kept as `*.conflict-*`); Obsidian is a read-only mirror (`rclone sync` with `--backup-dir` for safety). The script is fully out-of-band of the MCP server — no Python deps, no token files in `~/.open-coach/`, no MCP coupling. Personal values come from per-machine env vars (`OPEN_COACH_DRIVE_FOLDER_ID`, `OPEN_COACH_REPO_PLANS_DIR`, `OPEN_COACH_OBSIDIAN_PLANS_DIR`, optional `OPEN_COACH_DRIVE_REMOTE`). Setup and operations: `docs/drive-sync.md`.
+`scripts/drive_sync.sh` is an `rclone`-based wrapper that syncs `<repo>/plans/` bidirectionally with a Google Drive folder, and pulls Drive read-only into a local Obsidian vault. **Drive is the source of truth** in this topology; the project's `plans/` directory is bidirectional (`bisync`, last mtime wins, conflicts kept as `*.conflict-*`); Obsidian is a read-only mirror (`rclone sync` with `--backup-dir` for safety). The script is fully out-of-band of the MCP server — no Python deps, no token files in `~/.open-coach/`, no MCP coupling. Personal values come from per-machine env vars (`OPEN_COACH_DRIVE_FOLDER_ID`, `OPEN_COACH_REPO_PLANS_DIR`, `OPEN_COACH_OBSIDIAN_PLANS_DIR`, optional `OPEN_COACH_DRIVE_REMOTE`). Setup and operations: `docs/optional/drive-sync.md`.
 
 ### Strava integration
 
