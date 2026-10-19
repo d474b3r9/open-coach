@@ -5,7 +5,7 @@
 #   - Obsidian local vault (read-only pull via rclone sync)
 #
 # All personal values come from environment variables. Nothing personal is
-# committed in this script. See docs/drive-sync.md for setup.
+# committed in this script. See docs/optional/drive-sync.md for setup.
 
 set -euo pipefail
 
@@ -70,7 +70,7 @@ require_env() {
   val=$(env_or "$name" "")
   if [[ -z "$val" ]]; then
     echo "ERROR: required env var $name is not set." >&2
-    echo "       See docs/drive-sync.md for setup." >&2
+    echo "       See docs/optional/drive-sync.md for setup." >&2
     exit 1
   fi
   printf '%s' "$val"
