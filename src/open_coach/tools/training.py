@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import date
-
 from fastmcp import Context
 
+from open_coach.clock import local_today
 from open_coach.server import mcp
 from open_coach.sports.base import SportKey
 from open_coach.sports.registry import get_sport
@@ -90,7 +89,7 @@ async def get_training_load(days: int = LOAD_WINDOW_DAYS, ctx: Context | None = 
         return watch_error()
 
     storage = ctx.lifespan_context["storage"]
-    today = date.today()
+    today = local_today()
     snapshot = await training_load_as_of(watch, storage, today, days)
     if snapshot.point is None:
         return {"error": "No activities with HR data found."}

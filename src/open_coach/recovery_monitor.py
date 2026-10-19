@@ -12,6 +12,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Literal
 
+from open_coach.clock import local_today
 from open_coach.models import (
     AdaptiveRecommendation,
     AthleteProfile,
@@ -360,13 +361,13 @@ def assess_recovery(
         tsb: Training Stress Balance.
         avg_stress: Watch average stress level (0-100).
         recent_feedback: Last few workout feedback entries.
-        today: Current date (defaults to date.today()).
+        today: Current date (defaults to local_today()).
 
     Returns:
         RecoveryAssessment with overall score, signal breakdown, and recommendations.
     """
     if today is None:
-        today = date.today()
+        today = local_today()
 
     signals = [
         _score_hrv(hrv_last_night, hrv_weekly_avg),

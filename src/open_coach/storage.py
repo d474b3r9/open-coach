@@ -9,11 +9,13 @@ saved back in the current schema, and the original is kept once as
 from __future__ import annotations
 
 import json
-from datetime import date, datetime, timedelta
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from pydantic import BaseModel
 
+from open_coach.clock import local_today, to_local, utcnow
+from open_coach.jsonio import read_json_text, write_json_text
 from open_coach.migrations import Kind, migrate
 from open_coach.models import (
     ActivityCache,
@@ -39,7 +41,7 @@ def _load[M: BaseModel](path: Path, kind: Kind, model: type[M]) -> M:
     A migrated file is written back in the current schema; the original text is
     kept as ``<file>.v<N>.bak`` (first migration only, never overwritten).
     """
-    raw = path.read_text()
+    raw = read_json_text(path)
     data = json.loads(raw)
     if kind == "activity_cache" and isinstance(data, list):  # legacy pre-envelope format
         data = {"schema_version": 1, "activities": data}
@@ -48,8 +50,8 @@ def _load[M: BaseModel](path: Path, kind: Kind, model: type[M]) -> M:
     if from_version is not None:
         backup = path.with_name(f"{path.name}.v{from_version}.bak")
         if not backup.exists():
-            backup.write_text(raw)
-        path.write_text(obj.model_dump_json(indent=2))
+            write_json_text(backup, raw)
+        write_json_text(path, obj.model_dump_json(indent=2))
     return obj
 
 
@@ -82,9 +84,9 @@ class CoachStorage:
 
     def save_profile(self, profile: AthleteProfile) -> None:
         """Persist the athlete profile (stamps updated_at)."""
-        profile.updated_at = datetime.now()
+        profile.updated_at = utcnow()
         path = self.base_dir / "profile.json"
-        path.write_text(profile.model_dump_json(indent=2))
+        write_json_text(path, profile.model_dump_json(indent=2))
 
     # ── Goals ──
 
@@ -97,9 +99,9 @@ class CoachStorage:
 
     def save_goals(self, goals: GoalsConfig) -> None:
         """Persist the goals config (stamps updated_at)."""
-        goals.updated_at = datetime.now()
+        goals.updated_at = utcnow()
         path = self.base_dir / "goals.json"
-        path.write_text(goals.model_dump_json(indent=2))
+        write_json_text(path, goals.model_dump_json(indent=2))
 
     # ── Constraints ──
 
@@ -108,13 +110,13 @@ class CoachStorage:
         path = self.base_dir / "constraints.json"
         if not path.exists():
             return None
-        return TrainingConstraints.model_validate_json(path.read_text())
+        return TrainingConstraints.model_validate_json(read_json_text(path))
 
     def save_constraints(self, constraints: TrainingConstraints) -> None:
         """Persist training constraints (stamps updated_at)."""
-        constraints.updated_at = datetime.now()
+        constraints.updated_at = utcnow()
         path = self.base_dir / "constraints.json"
-        path.write_text(constraints.model_dump_json(indent=2))
+        write_json_text(path, constraints.model_dump_json(indent=2))
 
     # ── Feedback ──
 
@@ -129,7 +131,7 @@ class CoachStorage:
     def load_feedback(self, quarter: str | None = None) -> FeedbackLog:
         """Load the feedback log for a quarter (default: current quarter)."""
         if quarter is None:
-            quarter = self._quarter_for_date(datetime.now())
+            quarter = self._quarter_for_date(to_local(utcnow()))
         path = self._feedback_path(quarter)
         if not path.exists():
             return FeedbackLog(period=quarter)
@@ -137,11 +139,11 @@ class CoachStorage:
 
     def append_feedback(self, entry: WorkoutFeedback) -> None:
         """Append one feedback entry to the current quarter's log."""
-        quarter = self._quarter_for_date(datetime.now())
+        quarter = self._quarter_for_date(to_local(utcnow()))
         log = self.load_feedback(quarter)
         log.entries.append(entry)
         path = self._feedback_path(quarter)
-        path.write_text(log.model_dump_json(indent=2))
+        write_json_text(path, log.model_dump_json(indent=2))
 
     # ── Plans ──
 
@@ -162,14 +164,14 @@ class CoachStorage:
         archived_name: str | None = None
         current = self.load_active_plan()
         if current is not None and current.name != plan.name:
-            race_over = current.end_date < date.today()
+            race_over = current.end_date < local_today()
             current.status = "completed" if race_over else "abandoned"
             self.archive_plan(current)
             archived_name = current.name
 
-        plan.updated_at = datetime.now()
+        plan.updated_at = utcnow()
         path = self.base_dir / "plans" / "active.json"
-        path.write_text(plan.model_dump_json(indent=2))
+        write_json_text(path, plan.model_dump_json(indent=2))
         return archived_name
 
     def rename_active_plan(self, new_name: str) -> tuple[str, str]:
@@ -182,9 +184,9 @@ class CoachStorage:
             raise ValueError("No active plan to rename.")
         old_name = plan.name
         plan.name = new_name
-        plan.updated_at = datetime.now()
+        plan.updated_at = utcnow()
         path = self.base_dir / "plans" / "active.json"
-        path.write_text(plan.model_dump_json(indent=2))
+        write_json_text(path, plan.model_dump_json(indent=2))
         return old_name, new_name
 
     def auto_archive_expired(self, grace_days: int = 3) -> TrainingPlan | None:
@@ -196,7 +198,7 @@ class CoachStorage:
         plan = self.load_active_plan()
         if plan is None:
             return None
-        if plan.end_date + timedelta(days=grace_days) >= date.today():
+        if plan.end_date + timedelta(days=grace_days) >= local_today():
             return None
         plan.status = "completed"
         self.archive_plan(plan)
@@ -212,7 +214,7 @@ class CoachStorage:
         while path.exists():
             path = archive_dir / f"{safe_name}-{suffix}.json"
             suffix += 1
-        path.write_text(plan.model_dump_json(indent=2))
+        write_json_text(path, plan.model_dump_json(indent=2))
 
         # Remove active plan
         active_path = self.base_dir / "plans" / "active.json"
@@ -246,7 +248,7 @@ class CoachStorage:
         """Persist activity summaries in a versioned envelope."""
         path = self.base_dir / "activity_cache" / "summary.json"
         cache = ActivityCache(activities=activities)
-        path.write_text(cache.model_dump_json(indent=2))
+        write_json_text(path, cache.model_dump_json(indent=2))
 
     # ── Workout registry ──
 
@@ -255,12 +257,12 @@ class CoachStorage:
         path = self.base_dir / "workouts" / "registry.json"
         if not path.exists():
             return WorkoutRegistry()
-        return WorkoutRegistry.model_validate_json(path.read_text())
+        return WorkoutRegistry.model_validate_json(read_json_text(path))
 
     def save_workout_registry(self, registry: WorkoutRegistry) -> None:
         """Persist the upload registry."""
         path = self.base_dir / "workouts" / "registry.json"
-        path.write_text(registry.model_dump_json(indent=2))
+        write_json_text(path, registry.model_dump_json(indent=2))
 
     def register_workout_upload(self, upload: WorkoutUpload) -> None:
         """Record a new watch workout upload in the registry."""

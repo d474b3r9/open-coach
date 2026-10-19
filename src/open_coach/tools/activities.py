@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, timedelta
+from datetime import timedelta
 
 from fastmcp import Context
 
+from open_coach.clock import local_today
 from open_coach.server import mcp
 from open_coach.sports.base import ActivitySport
 from open_coach.sports.registry import get_sport, is_registered
@@ -44,7 +45,7 @@ async def get_recent_activities(
     if watch is None:
         return watch_error()
 
-    activities = await watch.list_activities(date.today() - timedelta(days=days), date.today())
+    activities = await watch.list_activities(local_today() - timedelta(days=days), local_today())
     if sport is not None:
         activities = [a for a in activities if a.sport == sport]
     results = []

@@ -164,6 +164,12 @@ async def my_tool(arg: int, ctx: Context | None = None) -> dict:
 
 Schema v2 is sport-agnostic: distances in metres, durations in seconds, targets as `Intensity(kind, value)`, weekly volume as `dict[sport, Volume]`, per-sport fitness / PRs / training pattern under `AthleteProfile.sports`, `sport` on goals, sessions (None = the plan's), extra activities and feedback. Neutral types live in `sports/base.py`; running helpers (`vdot_of`, `set_vdot`, `pace`, `pace_of`, `avg_pace_sec_per_km`) in `sports/running/`.
 
+### Time convention (every OS)
+
+`clock.py` is the only module that reads the system clock (`tests/test_clock.py` fails on a bare `datetime.now()` / `date.today()` anywhere else in `src/`). Instants are stored as **aware UTC** (`UtcDatetime` model fields, serialized `...Z`), shown to the athlete in the PC's local timezone (`to_local`), and "today" is the athlete's local calendar day (`local_today()`). Calendar dates (race date, session date, feedback date) stay plain dates; the watch's `start_time_local` strings are vendor wall-clock and are left alone. A naive datetime from a file written by an older version is read as the local time of the reading PC (no schema bump: the field validator is the compatibility layer). A new timestamp field: type it `UtcDatetime`, fill it with `utcnow()`.
+
+**Encoding**: all coach JSON goes through `jsonio.py` (`read_json_text` tolerates BOM and legacy cp1252, `write_json_text` writes UTF-8 with `\n`): never call bare `read_text()` / `write_text()` on coach files (the locale encoding differs between Windows and Linux).
+
 ### Watch workouts
 
 Upload / schedule / unschedule / delete go through the provider (`GarminProvider` wraps garminconnect ≥ 0.3.0, which has native `delete_workout()` / `unschedule_workout()`). The local registry `~/.open-coach/workouts/registry.json` (`WorkoutRegistry`) tracks all uploads for idempotent `clean_watch_calendar`.

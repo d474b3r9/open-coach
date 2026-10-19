@@ -10,12 +10,13 @@ import asyncio
 import contextlib
 import json
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import TYPE_CHECKING, Literal
 
 from fastmcp import Context
 from pydantic import ValidationError
 
+from open_coach.clock import local_today, to_local, utcnow
 from open_coach.tools._common import (
     get_watch,
     injury_check,
@@ -85,7 +86,7 @@ async def _training_load_block(ctx: Context, storage: CoachStorage, today: date)
             "ctl": profile.ctl,
             "atl": profile.atl,
             "tsb": profile.tsb,
-            "as_of": pattern.computed_at.date().isoformat() if pattern else None,
+            "as_of": to_local(pattern.computed_at).date().isoformat() if pattern else None,
             "source": "profile_snapshot",
             "note": "Stale snapshot from the last profile bootstrap — not today's load.",
         }
@@ -116,7 +117,7 @@ async def _coaching_context(ctx: Context) -> dict:
             delete_plan_markdown(auto_archived)
     plan = storage.load_active_plan()
 
-    today = date.today()
+    today = local_today()
 
     if plan:
         weeks_elapsed = (today - plan.start_date).days // 7 + 1
@@ -214,7 +215,7 @@ def get_recent_feedback(ctx: Context) -> str:
 
 def _active_plan_payload(storage: CoachStorage) -> dict:
     """Active plan as JSON-ready dict, with today / current week / days remaining."""
-    today = date.today()
+    today = local_today()
     plan = storage.load_active_plan()
     if plan is None:
         return {"status": "no_active_plan", "today": today.isoformat()}
@@ -324,7 +325,7 @@ async def bootstrap_athlete_profile(ctx: Context | None = None) -> dict:
     # Fetch 6 months of activities
     from open_coach.models import ActivitySummary
 
-    recorded = await watch.list_activities(date.today() - timedelta(days=180), date.today())
+    recorded = await watch.list_activities(local_today() - timedelta(days=180), local_today())
     activities = []
     for a in recorded:
         dist = a.distance_m
@@ -355,7 +356,7 @@ async def bootstrap_athlete_profile(ctx: Context | None = None) -> dict:
     from open_coach.zones import estimate_max_hr, estimate_resting_hr
 
     try:
-        hr = await watch.daily_heart_rate(date.today().isoformat())
+        hr = await watch.daily_heart_rate(local_today().isoformat())
         if hr.resting_hr:
             profile.resting_hr = int(hr.resting_hr)
     except Exception as err:
@@ -454,7 +455,7 @@ async def set_training_goal(
         race_date=parsed_race_date,
         target_time_s=target_time_s,
         priority=priority,
-        created_at=datetime.now(),
+        created_at=utcnow(),
     )
     goals.goals.append(goal)
     storage.save_goals(goals)
@@ -522,7 +523,7 @@ async def report_injury(
         description=description,
         body_part=body_part,
         severity=severity,
-        date_reported=date.today(),
+        date_reported=local_today(),
     )
     constraints.injuries.append(injury)
     storage.save_constraints(constraints)
@@ -545,7 +546,7 @@ async def resolve_injury(body_part: str, ctx: Context | None = None) -> dict:
     for injury in constraints.injuries:
         if not injury.resolved and injury.body_part.lower() == body_part.lower():
             injury.resolved = True
-            injury.resolved_date = date.today()
+            injury.resolved_date = local_today()
             resolved_count += 1
 
     if resolved_count == 0:
@@ -576,7 +577,7 @@ async def record_workout_feedback(
     assert ctx is not None
     storage = ctx.lifespan_context["storage"]
 
-    entry_date = parse_iso_date(feedback_date) if feedback_date else date.today()
+    entry_date = parse_iso_date(feedback_date) if feedback_date else local_today()
     if entry_date is None:
         return invalid_date_error("feedback_date", feedback_date or "")
 
@@ -595,7 +596,7 @@ async def record_workout_feedback(
         perceived_effort=perceived_effort,
         feeling=feeling,
         notes=notes,
-        recorded_at=datetime.now(),
+        recorded_at=utcnow(),
     )
 
     # Auto-fill from the watch platform if connected and activity_id provided
@@ -747,7 +748,7 @@ async def archive_active_plan(
 async def _cleanup_future_watch_workouts(watch: WatchProvider, storage: CoachStorage) -> dict:
     """Delete coach-created watch workouts scheduled strictly after today."""
     registry = storage.load_workout_registry()
-    today = date.today()
+    today = local_today()
     deleted = 0
     errors: list[dict] = []
     for entry in registry.active_workouts():

@@ -14,6 +14,7 @@ from datetime import date, timedelta
 
 from fastmcp import Context
 
+from open_coach.clock import local_today
 from open_coach.models import TrainingConstraints
 from open_coach.plan_metrics import recompute_week_actuals
 from open_coach.plan_renderer import (
@@ -92,7 +93,7 @@ async def generate_training_plan(
 
     constraints = storage.load_constraints() or TrainingConstraints()
 
-    today = date.today()
+    today = local_today()
     if start_date:
         parsed_start = parse_iso_date(start_date)
         if parsed_start is None:
@@ -189,7 +190,7 @@ async def sync_upcoming_workouts(
         return {"error": "No active plan. Run generate_training_plan first."}
 
     weeks_ahead = max(1, min(4, weeks_ahead))
-    today = date.today()
+    today = local_today()
     window_end = today + timedelta(weeks=weeks_ahead)
 
     to_sync = [

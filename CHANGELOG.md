@@ -112,6 +112,14 @@ Gemini CLI, VS Code, Claude Desktop…), not only Claude Code.
 
 ### Fixed
 
+- One time convention on every OS: stored instants (`created_at`, `updated_at`,
+  feedback and upload times…) are UTC (`...Z`), shown in the PC's local time
+  (plan markdown), and "today" is the PC's local calendar day. `clock.py` is the
+  only place that reads the system clock (enforced by a test). Older files with
+  naive times are read as local time and rewritten as UTC on the next save.
+- Coach JSON files are written as UTF-8 on every platform (they used the locale
+  encoding, cp1252 on Windows, so a file moved to Linux was unreadable). Legacy
+  cp1252 files still load and are rewritten as UTF-8.
 - `scripts/audit_docs.py` no longer warns "no numbered sections found":
   the check for `## N.` sections in the methodology `SKILL.md` is removed,
   since the rules moved to named sections in `references/`. The contributor

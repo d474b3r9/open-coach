@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import timedelta
 
+from open_coach.clock import local_today, utcnow
 from open_coach.models import ActivitySummary, PersonalRecord, SportProfile, TrainingPattern
 from open_coach.sports.base import FitnessMarker
 from open_coach.sports.running import VDOT_METRIC, avg_pace_sec_per_km, pace
@@ -95,7 +96,7 @@ def compute_vdot_from_prs(
     Returns:
         Tuple of (vdot, source_description) or (None, None) if no recent PRs.
     """
-    cutoff = date.today() - timedelta(days=max_age_days)
+    cutoff = local_today() - timedelta(days=max_age_days)
     recent = [pr for pr in prs if pr.date >= cutoff]
 
     if not recent:
@@ -129,7 +130,7 @@ def analyze_training_patterns(
     Returns:
         TrainingPattern summary, or None if not enough data.
     """
-    cutoff = date.today() - timedelta(days=window_days)
+    cutoff = local_today() - timedelta(days=window_days)
     recent = [a for a in activities if a.date >= cutoff]
 
     if len(recent) < 4:
@@ -162,7 +163,7 @@ def analyze_training_patterns(
         long_session_avg_duration_s=round(long_run_dur, 0),
         easy_intensity=pace(round(easy_pace, 0)),
         analysis_window_days=window_days,
-        computed_at=datetime.now(),
+        computed_at=utcnow(),
     )
 
 

@@ -9,9 +9,10 @@ Conventions enforced here:
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime
+from datetime import date
 from typing import TYPE_CHECKING, Any, NamedTuple
 
+from open_coach.clock import local_today, utcnow
 from open_coach.paths import env
 from open_coach.plan_renderer import delete_plan_markdown
 from open_coach.training_load import calculate_load_series, daily_tss_from_activities
@@ -45,7 +46,7 @@ def get_watch(ctx: Context) -> WatchProvider | None:
 
 def resolve_target_date(target_date: str) -> str:
     """Resolve the 'today' sentinel to an ISO date string."""
-    return date.today().isoformat() if target_date == "today" else target_date
+    return local_today().isoformat() if target_date == "today" else target_date
 
 
 def parse_iso_date(value: str) -> date | None:
@@ -222,7 +223,7 @@ async def load_profile_live(ctx: Context) -> AthleteProfile | None:
     if profile is None or watch is None:
         return profile
     try:
-        snapshot = await training_load_as_of(watch, storage, date.today())
+        snapshot = await training_load_as_of(watch, storage, local_today())
     except Exception as err:
         logger.debug("Live training load failed, using the profile snapshot: %s", err)
         return profile
@@ -241,7 +242,7 @@ async def upload_and_register(watch: WatchProvider, storage: CoachStorage, dsl: 
         WorkoutUpload(
             workout_id=workout_id,
             name=dsl.name,
-            uploaded_at=datetime.now(),
+            uploaded_at=utcnow(),
             provider=watch.name,
         )
     )
