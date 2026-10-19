@@ -11,6 +11,14 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 To add an entry, see "Changelog" in [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## #27 — docs(changelog): one section per pull request, rewrite the history from the public release (2026-10-19)
+
+- The changelog is rewritten from the public release (2026-09-29): the private
+  `0.1.0` and `0.2.0` are folded into `0.2.0 — Initial public release`, and every
+  pull request since (#1 to #26) has its own section. No "Unreleased" bucket.
+- CONTRIBUTING documents the format ("Changelog"), the pull request template has a
+  changelog checkbox, and `tests/test_changelog.py` checks the structure.
+
 ## #26 — feat(state): restore the coach on another machine from a portable snapshot (2026-10-19)
 
 - Move the coach between machines, Windows ⇄ Linux ⇄ macOS: the state (profile,
