@@ -50,6 +50,22 @@ def _mk_ctx(lifespan_ctx: dict) -> SimpleNamespace:
     )
 
 
+def _unwrap_ctx_fn(fn: Any) -> Any:
+    """Return the original resource function (with its `ctx` param).
+
+    FastMCP wraps functions typed `ctx: Context` in a wrapper that injects the
+    context from the active request — unavailable in this script. The original
+    function sits in the wrapper's closure.
+    """
+    if "ctx" in inspect.signature(fn).parameters:
+        return fn
+    for cell in fn.__closure__ or ():
+        inner = cell.cell_contents
+        if callable(inner) and "ctx" in inspect.signature(inner).parameters:
+            return inner
+    return fn
+
+
 def _summarize(result: Any) -> str:
     if isinstance(result, dict):
         keys = list(result.keys())[:4]
@@ -117,7 +133,9 @@ async def main() -> int:
         print(f"\n=== resources ({len(resources)} + {len(templates)} templates) ===")
         for res in resources:
             try:
-                out = res.fn(ctx=ctx)
+                out = _unwrap_ctx_fn(res.fn)(ctx=ctx)
+                if inspect.isawaitable(out):
+                    out = await out
                 if not isinstance(out, str) or not out:
                     failed.append((str(res.uri), "non-string or empty"))
                     print(f"[FAIL] {res.uri}")
