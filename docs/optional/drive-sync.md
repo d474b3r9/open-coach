@@ -19,6 +19,10 @@ A `rclone`-based sync that turns a Google Drive folder into the source of truth 
 - Drive → Obsidian: one-way pull (`rclone sync`). **Local Obsidian edits are wiped on each pull** — by design. Edit through the Drive web UI or through the project, never directly in Obsidian.
 - No Python/OAuth code in the project. `rclone` handles auth and tokens.
 
+> **Files only.** The sync moves the markdown copies (`plans/`). The MCP server's state lives in `~/.open-coach/*.json` (profile, goals, active plan) and is **never** imported from Drive. Content already on Drive (a plan, a journal) reaches the coach only if it is re-saved through the MCP tools (`save_training_plan`, `update_athlete_profile`…). The flow is MCP → `plans/*.md` → Drive → Obsidian.
+
+> **On Windows?** Read [Windows notes](#windows-notes) first: `rclone` PATH, which `bash` to use, and Linux-style paths copied from other machines are the usual blockers.
+
 ---
 
 ## 1. Install rclone
@@ -35,19 +39,27 @@ curl https://rclone.org/install.sh | sudo bash
 
 ### Windows
 
-**Option A — Chocolatey** (recommended if you already use it):
+**Option A — winget** (built into Windows 11):
+
+```powershell
+winget install Rclone.Rclone
+```
+
+winget unpacks rclone under `%LOCALAPPDATA%\Microsoft\WinGet\Packages\Rclone.Rclone_*\rclone-*-windows-amd64\` and updates `PATH` for **new** shells only. If `rclone` is "not recognized" right after installing, open a new terminal (in PyCharm/VS Code, restart the IDE: it caches the environment).
+
+**Option B — Chocolatey**:
 
 ```powershell
 choco install rclone
 ```
 
-**Option B — Scoop**:
+**Option C — Scoop**:
 
 ```powershell
 scoop install rclone
 ```
 
-**Option C — Manual**:
+**Option D — Manual**:
 
 1. Download the latest `rclone-*-windows-amd64.zip` from https://rclone.org/downloads/
 2. Extract somewhere stable, e.g. `C:\Program Files\rclone\`
@@ -73,19 +85,17 @@ This is interactive — `rclone config` prompts you through OAuth. Run it once p
 
 ### 2.1. Create your own OAuth client (recommended)
 
-Using your own OAuth client gives you a private rate-limit and removes "unverified app" friction long-term. Skip this section to start fast (use rclone's shared key by pressing Enter on `client_id>` and `client_secret>` in §2.2). You can switch later via `rclone config update gdrive client_id ... client_secret ...`.
+Using your own OAuth client gives you a private rate-limit and removes "unverified app" friction long-term. rclone's shared `client_id` is being retired during 2026, so creating your own is now the safe default. You can still leave `client_id>` / `client_secret>` empty in §2.2 to try the shared key, but **never type a placeholder** (`1`, `x`…): Google answers `401 invalid_client` in the browser. Fix a wrong value with `rclone config update gdrive client_id ... client_secret ...`.
 
 1. Go to https://console.cloud.google.com/ (logged in with the Google account that owns the Drive folder).
 2. **Create a project**: top-bar project picker → **NEW PROJECT** → name it (e.g. `rclone-perso`) → **CREATE**.
 3. **Enable the Drive API**: ☰ → **APIs & Services** → **Library** → search `Google Drive API` → click → **ENABLE**.
-4. **OAuth consent screen**: ☰ → **APIs & Services** → **OAuth consent screen**.
-   - User Type: **External** → CREATE
-   - App name: `rclone-perso`, support + dev email: your email → SAVE AND CONTINUE
-   - Scopes: skip → SAVE AND CONTINUE
-   - **Test users**: **ADD USERS** → your Google email (lowercase) → ADD → SAVE AND CONTINUE
-   - Stay in **Testing** publishing status (do not click "Publish App" — no review needed for personal use).
+4. **OAuth consent screen** (now called **Google Auth Platform**: ☰ → **APIs & Services** → **OAuth consent screen**, or https://console.cloud.google.com/auth/overview).
+   - Click **Get started**. App name: `rclone-perso`, support email: yours. Audience: **External**. Contact email: yours.
+   - **Audience** → **Test users** → **Add users** → your Google email (lowercase) → Save.
+   - **Publish the app** (Audience → **Publish app**). In *Testing* status the refresh token **expires after 7 days** and you must run `rclone config reconnect gdrive:` weekly. Publishing a personal app needs no Google review: you only see the "unverified app" warning once (see §2.2).
 5. **Create OAuth credentials**: **Credentials** → **+ CREATE CREDENTIALS** → **OAuth client ID**.
-   - Application type: **Desktop app**
+   - Application type: **Desktop app** (in the new UI: **Clients** → **Create client**)
    - Name: `rclone`
    - CREATE → copy **Client ID** and **Client secret** from the popup.
 
@@ -173,13 +183,15 @@ Reload: `source ~/.bashrc`.
 
 ### Windows — PowerShell (User scope)
 
+Use **Windows paths of this machine** (never paste `export ...$HOME/...` lines from a Linux/macOS setup: the repo and vault locations differ). Forward slashes (`C:/Users/you/...`) are the form validated with Git Bash; if a backslash path is rejected, switch to forward slashes.
+
 ```powershell
 setx OPEN_COACH_DRIVE_FOLDER_ID "<your-folder-id>"
 setx OPEN_COACH_REPO_PLANS_DIR "C:\Users\you\path\to\open-coach\plans"
 setx OPEN_COACH_OBSIDIAN_PLANS_DIR "C:\Users\you\path\to\obsidian\plans\folder"
 ```
 
-> `setx` writes at User scope but is not visible in the current shell — open a new terminal afterwards.
+> `setx` writes at User scope but is not visible in the current shell — open a new terminal afterwards. An agent or script launched from an old shell will not see them either; export them inline for a one-off run.
 
 ## 6. Create the access sentinel (`RCLONE_TEST`)
 
@@ -195,9 +207,10 @@ rclone touch "gdrive:RCLONE_TEST"
 
 ## 7. Onboarding sequence (one time)
 
-Run these once, in order, after configuring rclone and setting env vars:
+Run these once, in order, after configuring rclone and setting env vars. **Preview first** with `--dry-run` on each command, especially when the Drive folder already holds content: `--init-project` is a `bisync --resync --resync-mode newer` baseline: per file, the newer mtime wins and **overwrites the other side** (no `*.conflict-*` copy at this step); one-sided files are copied across, never deleted. A template-like `athlete-profile.md` on Drive with a newer mtime will replace a filled local one, so check the dry-run output for files present on both sides. `.templates/` is excluded.
 
 ```bash
+# 0. Dry-run (no change): add --dry-run to the commands below and read the output.
 # 1. Seed Drive with the current content of your Obsidian vault.
 #    This is a one-way copy — Obsidian -> Drive, no deletes.
 bash scripts/drive_sync.sh --init-obsidian
@@ -309,10 +322,33 @@ If rclone refuses a run you intended (e.g. you deliberately cleared most of a fo
 OPEN_COACH_OBSIDIAN_MAX_DELETE=200 bash scripts/drive_sync.sh --obsidian
 ```
 
+## Windows notes
+
+The script is bash and the usual Windows shells make three traps. All come from real first-run failures.
+
+1. **Which `bash`?** In PowerShell, `bash` resolves to WSL's launcher (`C:\Windows\System32\bash.exe`). Without an installed distribution it prints *"Windows Subsystem for Linux has no installed distributions"* (localized to your Windows language). Use **Git Bash** instead:
+   - open "Git Bash" from the Start menu, then `cd /c/Users/you/path/to/open-coach` (POSIX path: `/c/...`, not `C:\...`), or
+   - from PowerShell: `& "C:\Program Files\Git\bin\bash.exe" scripts/drive_sync.sh --all`.
+   - `cd /c/Users/...` typed in PowerShell fails (`C:\c\Users\...` does not exist): that syntax is for Git Bash only.
+2. **`rclone` not recognized** right after `winget install`: `PATH` is only refreshed in new shells (§1). Check in the shell that runs the script: `rclone version`. Git Bash inherits the Windows `PATH`, so open it *after* the install.
+3. **Env vars not visible**: `setx` only affects future shells (§5). Git Bash inherits them from Windows, so open it after `setx`.
+4. **Linux-style paths from another machine** (`$HOME/PycharmProjects/Perso/...`) point to nowhere here. Check each with `Test-Path` (PowerShell) before `setx`.
+5. **Scheduled run**: Task Scheduler action `"C:\Program Files\Git\bin\bash.exe" -c "/c/Users/you/path/to/open-coach/scripts/drive_sync.sh --all"`, with the User-scope variables visible to the task account.
+
+Obsidian specifics:
+- The vault path must be the **plans folder inside the vault** (the one that holds `archive/`, `athlete-profile.md`…), not the vault root. A wrong folder makes `--obsidian` wipe it (recoverable from `<folder>.rclone-backup/`).
+- `--obsidian` rewrites files from outside Obsidian: edit through the project or Drive, not in the vault.
+- Keep the plans folder out of other sync tools (OneDrive, Dropbox, Obsidian Sync): two syncers on the same files cause conflicts.
+
 ## 11. Troubleshooting
 
 | Symptom | Likely cause | Fix |
 |---|---|---|
+| `401` / `invalid_client` page in the browser during OAuth | Placeholder or wrong `client_id` typed in `rclone config` (e.g. `1`), or shared key retired | Create your own OAuth client (§2.1), then `rclone config update gdrive client_id <id> client_secret <secret>` and `rclone config reconnect gdrive:` |
+| Drive access stops working after ~7 days | OAuth consent screen still in **Testing**: refresh token expires after 7 days | Publish the app (§2.1), then `rclone config reconnect gdrive:` |
+| `rclone` is not recognized (PowerShell) | New install, shell `PATH` not refreshed | Open a new terminal / restart the IDE (§1) |
+| `bash` prints a WSL "no installed distribution" message | `bash` resolved to WSL, not Git Bash | Use Git Bash (Windows notes) |
+| `ERROR: rclone remote 'gdrive' has root_folder_id='<unset>'` | §4 skipped | `rclone config update gdrive root_folder_id <FOLDER_ID>` |
 | `Error 403: access_denied` (Google) during OAuth | Your email isn't a Test user on the OAuth consent screen | GCP Console → OAuth consent screen → Test users → ADD USERS → your email (lowercase) |
 | `Error 403: SERVICE_DISABLED — Google Drive API has not been used` | Drive API not enabled on the GCP project | Click the activation URL in the error, ENABLE, wait 30s, retry |
 | `oauth2: cannot fetch token: 404 Not Found` | Bad `token_url` saved in advanced config | `rclone config delete gdrive` and redo §2.2, answering **n** to "Edit advanced config" |

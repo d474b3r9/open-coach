@@ -129,47 +129,9 @@ The MCP tool `get_strava_activities(months=6, activity_type="Run")` is then live
 
 ## Drive sync (optional)
 
-Mirror your training plan markdown across machines via Google Drive — bidirectional with the project's `plans/` directory and a one-way pull into a local Obsidian vault. No project Python; everything runs through `rclone`.
+Mirror your training plan markdown across machines via Google Drive (bidirectional with the project's `plans/` directory, one-way pull into a local Obsidian vault). It is opt-in, runs out of band through `rclone`, and the MCP server never depends on it.
 
-1. **Install rclone 1.66+**: `curl https://rclone.org/install.sh | sudo bash` (Linux/macOS) or `choco install rclone` (Windows). Older `apt`-shipped versions (1.60 on Ubuntu 24.04) lack the bisync flags the script needs.
-2. **Configure the remote** (one-time browser OAuth):
-
-   ```bash
-   rclone config
-   # New remote → name: gdrive → type: drive → scope: 1 → auto config: y
-   ```
-
-3. **Set env vars** (each machine):
-
-   ```bash
-   # bash / zsh
-   export OPEN_COACH_DRIVE_FOLDER_ID="<your-drive-folder-id>"
-   export OPEN_COACH_REPO_PLANS_DIR="$HOME/path/to/open-coach/plans"
-   export OPEN_COACH_OBSIDIAN_PLANS_DIR="$HOME/path/to/your/obsidian/plans/folder"
-   # Optional, only if your remote is not "gdrive":
-   # export OPEN_COACH_DRIVE_REMOTE="my-other-name"
-   ```
-
-   ```powershell
-   # Windows PowerShell (User scope; open a new shell after)
-   setx OPEN_COACH_DRIVE_FOLDER_ID "<your-drive-folder-id>"
-   setx OPEN_COACH_REPO_PLANS_DIR "C:\path\to\open-coach\plans"
-   setx OPEN_COACH_OBSIDIAN_PLANS_DIR "C:\path\to\your\obsidian\plans\folder"
-   ```
-
-4. **Onboarding sequence** (run once, in order):
-
-   ```bash
-   bash scripts/drive_sync.sh --init-obsidian   # seed Drive from current Obsidian content
-   bash scripts/drive_sync.sh --init-project    # baseline bisync state
-   bash scripts/drive_sync.sh --all --dry-run   # verify steady state
-   ```
-
-5. **Daily**: `bash scripts/drive_sync.sh --all` (or `--project` / `--obsidian` separately).
-
-> Topology: Drive is the source of truth. The project's `plans/` directory bisyncs with Drive (last mtime wins; conflicts kept as `*.conflict-*`). Obsidian is **read-only** — `--obsidian` overwrites it from Drive. Edit through the Drive web UI or the project, never directly in Obsidian.
-
-Full setup, scheduling examples (systemd timer / Task Scheduler), and conflict/backup recovery live in [`docs/drive-sync.md`](docs/drive-sync.md).
+Setup (Linux, macOS and Windows), scheduling, conflict recovery and troubleshooting: [`docs/optional/drive-sync.md`](docs/optional/drive-sync.md).
 
 ## Run the MCP server
 
@@ -253,7 +215,7 @@ State persists in `~/.open-coach/` (profile, goals, plans, feedback, registries,
 - **No telemetry, no third-party servers.** The MCP server speaks directly to Garmin/Strava on your behalf. The model only sees what tool calls return.
 - **Athlete profile is gitignored.** Cloning the repo does NOT inherit any prior user's training plan or race calendar. Run `scripts/setup_local.py` to bootstrap your own from `plans/.templates/`.
 - **No secrets in the repo.** Credentials come from env vars (`GARMIN_EMAIL`, `STRAVA_CLIENT_ID`, …). `.mcp.json` uses `${VAR:-}` interpolation, so an unset variable is passed as empty and the server starts offline.
-- **Optional Google Drive sync** is opt-in, runs out of band via `rclone`, and never touches the MCP server. See [`docs/drive-sync.md`](docs/drive-sync.md).
+- **Optional Google Drive sync** is opt-in, runs out of band via `rclone`, and never touches the MCP server. See [`docs/optional/drive-sync.md`](docs/optional/drive-sync.md).
 - **Audit before every commit**: `uv run python scripts/audit_docs.py` checks that no personal-data marker leaks into versioned files. Personal markers can be added at runtime via the `OPEN_COACH_AUDIT_EXTRA_PATTERNS` env var (CSV of regex), so they never enter the repo.
 
 ## Contributing
