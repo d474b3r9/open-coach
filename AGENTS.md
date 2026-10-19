@@ -170,6 +170,14 @@ Schema v2 is sport-agnostic: distances in metres, durations in seconds, targets 
 
 **Encoding**: all coach JSON goes through `jsonio.py` (`read_json_text` tolerates BOM and legacy cp1252, `write_json_text` writes UTF-8 with `\n`): never call bare `read_text()` / `write_text()` on coach files (the locale encoding differs between Windows and Linux).
 
+### State snapshot (moving between machines)
+
+`state_snapshot.py` mirrors the JSON state (`profile`, `goals`, `constraints`, `plans/active` + `plans/archive/*`, `feedback/*`, `workouts/registry`) into `<plans md dir>/.state/` from `CoachStorage` (every save; `snapshot_dir` is passed by the server lifespan, tests leave it unset). The Drive sync carries `.state/` (excluded from the Obsidian pull). Tools `export_coach_state` / `restore_coach_state` (`tools/state.py`, dry-run by default) and the `restore-coach` workflow import it on another machine, any OS.
+
+- **Portability**: UTF-8, `\n`, POSIX relative paths (validated names), no absolute path or host identity. All coach JSON goes through `jsonio.py` (`read_json_text` tolerates BOM and legacy cp1252, `write_json_text` writes UTF-8): never call bare `read_text()` / `write_text()` on coach files (locale encoding differs between Windows and Linux).
+- **Safety**: `SYNC_MARKER` (`.state_sync.json` in the data dir) says this machine exchanged with the snapshot; without it, mirroring is blocked while a snapshot with a manifest exists (a fresh install cannot overwrite it). Restore: newer `updated_at` wins, feedback and watch registry merged, archives added, a stale active plan skipped, nothing overwritten without `force`.
+- Changing a persisted shape: the migration step (see Persistence) also covers snapshot files, they are migrated on restore. A new state file = add it to `state_snapshot._FIXED` / `_DIRS` and a test.
+
 ### Watch workouts
 
 Upload / schedule / unschedule / delete go through the provider (`GarminProvider` wraps garminconnect ≥ 0.3.0, which has native `delete_workout()` / `unschedule_workout()`). The local registry `~/.open-coach/workouts/registry.json` (`WorkoutRegistry`) tracks all uploads for idempotent `clean_watch_calendar`.
@@ -226,6 +234,7 @@ Read-only mirror of Strava activity data — useful when Garmin SSO is locked ou
 | `OPEN_COACH_DRIVE_REMOTE` | rclone remote name (default `gdrive`) | optional |
 | `OPEN_COACH_BISYNC_MAX_DELETE_PCT` | bisync mass-delete guard, percentage of files (default 50) | optional |
 | `OPEN_COACH_OBSIDIAN_MAX_DELETE` | Obsidian pull mass-delete guard, file count (default 20) | optional |
+| `OPEN_COACH_STATE_SNAPSHOT` | `off` / `0` disables the `plans/.state/` state mirror (default on) | optional |
 | `OPEN_COACH_WATCH` | Watch provider (`garmin`, the default and only value so far) | optional |
 
 On Windows, `setx` writes at User scope but is not visible in the current shell — open a new shell or load via PowerShell `[Environment]::GetEnvironmentVariable(name, 'User')`.
@@ -248,7 +257,7 @@ Guides are **Agent Skills** ([open standard](https://agentskills.io/specificatio
 
 - **`.agents/skills/coaching-rules/`** — **universal** coaching rules (80/20, load progression, recovery weeks, profile + journal, longitudinal adaptation) and the table of sport rules guides; `references/principles.md` via `get_coaching_guide("principles")`. **Does not pilot any MCP workflow.**
 - **`.agents/skills/coaching-rules-<sport>/`** — one rules guide per sport. Running: `coaching-rules-running` (Daniels, running plan structure, DSL workout conventions, anti-patterns) — `get_coaching_guide("rules-running" | "running-methodology" | "running-dsl-conventions" | "running-anti-patterns")`.
-- **`.agents/skills/{onboard, plan-training, push-workout, analyze-run, daily-check, race-ready}/`** — **MCP workflows** (procedural guides that call MCP tools), also exposed as MCP prompts of the same name. Each references `coaching-rules` for the rules to apply.
+- **`.agents/skills/{onboard, plan-training, push-workout, analyze-run, daily-check, race-ready, restore-coach}/`** — **MCP workflows** (procedural guides that call MCP tools), also exposed as MCP prompts of the same name. Each references `coaching-rules` for the rules to apply.
 - **`.agents/skills/extract-transcript/`** — repo maintenance skill (needs a shell), not served over MCP.
 
 Triggers are designed to be non-overlapping: `coaching-rules` triggers on rule/methodology terms; the workflow skills trigger on action verbs.

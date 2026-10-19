@@ -20,9 +20,15 @@ from open_coach.storage import CoachStorage
 
 @pytest.fixture
 def isolated_storage(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
-    """coach_lifespan calls CoachStorage() with no args — redirect it to tmp_path."""
+    """coach_lifespan builds CoachStorage itself — redirect data and snapshot to tmp_path."""
     base = tmp_path / "coach"
-    monkeypatch.setattr(open_coach.server, "CoachStorage", lambda: CoachStorage(base_dir=base))
+    monkeypatch.setattr(
+        open_coach.server,
+        "CoachStorage",
+        lambda snapshot_dir=None: CoachStorage(
+            base_dir=base, snapshot_dir=tmp_path / "snapshot" if snapshot_dir else None
+        ),
+    )
     return base
 
 

@@ -56,6 +56,7 @@ WORKFLOWS: tuple[str, ...] = (
     "analyze-run",
     "daily-check",
     "race-ready",
+    "restore-coach",
 )
 
 # Skills served as ``skill://<name>/…`` resources (SEP-2640). extract-transcript
@@ -75,6 +76,7 @@ GuideName = Literal[
     "analyze-run",
     "daily-check",
     "race-ready",
+    "restore-coach",
 ]
 
 GUIDE_NAMES: tuple[str, ...] = get_args(GuideName)

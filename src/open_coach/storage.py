@@ -31,6 +31,7 @@ from open_coach.models import (
 )
 from open_coach.paths import DATA_DIR, migrate_legacy_data_dir
 from open_coach.plan_renderer import _slugify
+from open_coach.state_snapshot import mirror_file, mirror_remove
 
 DEFAULT_COACH_DIR = DATA_DIR
 
@@ -58,11 +59,28 @@ def _load[M: BaseModel](path: Path, kind: Kind, model: type[M]) -> M:
 class CoachStorage:
     """Handles all persistence for the coaching layer."""
 
-    def __init__(self, base_dir: Path | None = None):
+    def __init__(self, base_dir: Path | None = None, snapshot_dir: Path | None = None):
+        """*snapshot_dir*: when set, every state file written is mirrored there
+        (see ``state_snapshot``). Tests leave it unset."""
+        self.snapshot_dir = snapshot_dir
         if base_dir is None:
             # First run after the garmin_coach → open_coach rename.
             migrate_legacy_data_dir()
         self.base_dir = base_dir or DEFAULT_COACH_DIR
+
+    def _mirror(self, path: Path) -> None:
+        """Mirror a freshly written state file into the snapshot (best effort)."""
+        if self.snapshot_dir is not None:
+            mirror_file(
+                self.base_dir, self.snapshot_dir, path.relative_to(self.base_dir).as_posix()
+            )
+
+    def _unmirror(self, path: Path) -> None:
+        """Drop a deleted state file from the snapshot (best effort)."""
+        if self.snapshot_dir is not None:
+            mirror_remove(
+                self.base_dir, self.snapshot_dir, path.relative_to(self.base_dir).as_posix()
+            )
 
     def ensure_dirs(self) -> None:
         """Create the storage directory structure."""
@@ -87,6 +105,7 @@ class CoachStorage:
         profile.updated_at = utcnow()
         path = self.base_dir / "profile.json"
         write_json_text(path, profile.model_dump_json(indent=2))
+        self._mirror(path)
 
     # ── Goals ──
 
@@ -102,6 +121,7 @@ class CoachStorage:
         goals.updated_at = utcnow()
         path = self.base_dir / "goals.json"
         write_json_text(path, goals.model_dump_json(indent=2))
+        self._mirror(path)
 
     # ── Constraints ──
 
@@ -117,6 +137,7 @@ class CoachStorage:
         constraints.updated_at = utcnow()
         path = self.base_dir / "constraints.json"
         write_json_text(path, constraints.model_dump_json(indent=2))
+        self._mirror(path)
 
     # ── Feedback ──
 
@@ -144,6 +165,7 @@ class CoachStorage:
         log.entries.append(entry)
         path = self._feedback_path(quarter)
         write_json_text(path, log.model_dump_json(indent=2))
+        self._mirror(path)
 
     # ── Plans ──
 
@@ -172,6 +194,7 @@ class CoachStorage:
         plan.updated_at = utcnow()
         path = self.base_dir / "plans" / "active.json"
         write_json_text(path, plan.model_dump_json(indent=2))
+        self._mirror(path)
         return archived_name
 
     def rename_active_plan(self, new_name: str) -> tuple[str, str]:
@@ -187,6 +210,7 @@ class CoachStorage:
         plan.updated_at = utcnow()
         path = self.base_dir / "plans" / "active.json"
         write_json_text(path, plan.model_dump_json(indent=2))
+        self._mirror(path)
         return old_name, new_name
 
     def auto_archive_expired(self, grace_days: int = 3) -> TrainingPlan | None:
@@ -215,11 +239,13 @@ class CoachStorage:
             path = archive_dir / f"{safe_name}-{suffix}.json"
             suffix += 1
         write_json_text(path, plan.model_dump_json(indent=2))
+        self._mirror(path)
 
         # Remove active plan
         active_path = self.base_dir / "plans" / "active.json"
         if active_path.exists():
             active_path.unlink()
+            self._unmirror(active_path)
 
     def list_archived_plans(self) -> list[str]:
         """Sorted slugs of all archived plans."""
@@ -263,6 +289,7 @@ class CoachStorage:
         """Persist the upload registry."""
         path = self.base_dir / "workouts" / "registry.json"
         write_json_text(path, registry.model_dump_json(indent=2))
+        self._mirror(path)
 
     def register_workout_upload(self, upload: WorkoutUpload) -> None:
         """Record a new watch workout upload in the registry."""

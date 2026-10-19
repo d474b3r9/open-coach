@@ -19,7 +19,7 @@ A `rclone`-based sync that turns a Google Drive folder into the source of truth 
 - Drive → Obsidian: one-way pull (`rclone sync`). **Local Obsidian edits are wiped on each pull** — by design. Edit through the Drive web UI or through the project, never directly in Obsidian.
 - No Python/OAuth code in the project. `rclone` handles auth and tokens.
 
-> **Files only.** The sync moves the markdown copies (`plans/`). The MCP server's state lives in `~/.open-coach/*.json` (profile, goals, active plan) and is **never** imported from Drive. Content already on Drive (a plan, a journal) reaches the coach only if it is re-saved through the MCP tools (`save_training_plan`, `update_athlete_profile`…). The flow is MCP → `plans/*.md` → Drive → Obsidian.
+> **What travels.** The sync moves files: the markdown copies in `plans/` and the state snapshot `plans/.state/` (profile, goals, constraints, plans, feedback as JSON, refreshed on every save). The coach's live state (`~/.open-coach/*.json`) is not read from Drive on its own: on another machine, import it with `restore_coach_state` (see [Moving to another machine](#moving-to-another-machine-windows--linux--macos)). Hand-written markdown on Drive (a reference plan, a journal) is read as context but is not turned into a plan automatically. Flow: MCP → `plans/*.md` + `plans/.state/` → Drive → Obsidian (`.state/` excluded).
 
 > **On Windows?** Read [Windows notes](#windows-notes) first: `rclone` PATH, which `bash` to use, and Linux-style paths copied from other machines are the usual blockers.
 
@@ -322,6 +322,22 @@ If rclone refuses a run you intended (e.g. you deliberately cleared most of a fo
 OPEN_COACH_OBSIDIAN_MAX_DELETE=200 bash scripts/drive_sync.sh --obsidian
 ```
 
+## Moving to another machine (Windows ⇄ Linux ⇄ macOS)
+
+The state snapshot is portable: UTF-8 files with `\n` line endings, POSIX relative paths, no absolute path and no machine identity. A snapshot written on Windows restores on Linux and macOS, and the other way round.
+
+1. **Old machine** (once, for an existing install): ask the coach to call `export_coach_state`, then `bash scripts/drive_sync.sh --all`. After that every save refreshes `plans/.state/` by itself (disable with `OPEN_COACH_STATE_SNAPSHOT=off`).
+2. **New machine**: install the coach, set up rclone and the environment variables (§1–§5, use *this* machine's paths), pull Drive (`--init-project` with a dry run first, then `--all`).
+3. Ask the coach to **restore** (workflow `restore-coach`, or the tools directly): `restore_coach_state()` previews, `restore_coach_state(apply=true)` imports.
+4. Reconnect the watch (the login is not in the snapshot), then `get_coaching_context` to check.
+
+What restore does, per file: missing here → restored; identical → untouched; feedback and watch uploads → merged; archived plans → added; profile, goals, constraints, plans → the newer `updated_at` wins, a newer local file is kept unless `force=true`; a stale active plan that is already archived is skipped; an invalid file is reported and never written. Timestamps are stored in UTC, so "newer" is exact whatever the time zone of each machine (the preview shows the snapshot time in your local time). Files written by older versions have no time zone: they are read as the local time of the machine that reads them, so for a snapshot made before this change, check the preview when the two machines are in different time zones.
+
+Safeguards:
+- A machine that never restored an existing snapshot **never overwrites it** (its saves are not mirrored until it restores or exports with `force=true`), so a fresh install cannot wipe your Drive state by onboarding first.
+- Files written by older Windows installs in cp1252 are read correctly and rewritten as UTF-8.
+- `.state/` is excluded from the Obsidian pull.
+
 ## Windows notes
 
 The script is bash and the usual Windows shells make three traps. All come from real first-run failures.
@@ -348,6 +364,8 @@ Obsidian specifics:
 | Drive access stops working after ~7 days | OAuth consent screen still in **Testing**: refresh token expires after 7 days | Publish the app (§2.1), then `rclone config reconnect gdrive:` |
 | `rclone` is not recognized (PowerShell) | New install, shell `PATH` not refreshed | Open a new terminal / restart the IDE (§1) |
 | `bash` prints a WSL "no installed distribution" message | `bash` resolved to WSL, not Git Bash | Use Git Bash (Windows notes) |
+| `restore_coach_state`: `No state snapshot at …` | `plans/.state/` not pulled yet, or the other machine never saved | On the old machine `export_coach_state`, run the Drive sync there, then pull here |
+| `export_coach_state`: snapshot "never restored on this machine" | Safeguard: a snapshot exists and this machine has not imported it | Run `restore_coach_state` first; `force=true` only to overwrite it on purpose |
 | `ERROR: rclone remote 'gdrive' has root_folder_id='<unset>'` | §4 skipped | `rclone config update gdrive root_folder_id <FOLDER_ID>` |
 | `Error 403: access_denied` (Google) during OAuth | Your email isn't a Test user on the OAuth consent screen | GCP Console → OAuth consent screen → Test users → ADD USERS → your email (lowercase) |
 | `Error 403: SERVICE_DISABLED — Google Drive API has not been used` | Drive API not enabled on the GCP project | Click the activation URL in the error, ENABLE, wait 30s, retry |
