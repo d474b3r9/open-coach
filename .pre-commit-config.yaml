@@ -1,3 +1,5 @@
+default_install_hook_types: [pre-commit, commit-msg]
+
 repos:
   - repo: https://github.com/astral-sh/ruff-pre-commit
     # Keep in sync with the ruff version pinned in pyproject.toml [dependency-groups] dev
@@ -19,3 +21,14 @@ repos:
         entry: uv run python scripts/audit_docs.py
         language: system
         pass_filenames: false
+      - id: changelog-lint
+        name: Changelog structure
+        entry: uv run python scripts/changelog.py lint
+        language: system
+        files: ^(CHANGELOG\.md|pyproject\.toml)$
+        pass_filenames: false
+      - id: conventional-subject
+        name: Commit subject (type(scope) summary)
+        entry: uv run python scripts/changelog.py title --commit-msg-file
+        language: system
+        stages: [commit-msg]

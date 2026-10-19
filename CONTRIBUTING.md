@@ -37,13 +37,13 @@ By participating you agree to follow the [Code of Conduct](.github/CODE_OF_CONDU
 
 ### Changelog
 
-`CHANGELOG.md` has one section per pull request, newest first.
+`CHANGELOG.md` has one section per pull request, newest first: `## #<number> — <PR title> (<date>)` and one bullet per change. You do not write it by hand: it is generated from the pull request.
 
-- A pull request that changes what users see (a tool or parameter, a file, an environment variable, a default, a behaviour, the layout of the docs) adds its own section at the top of the list: `## #<number> — <PR title> (<YYYY-MM-DD>)`, then one bullet per change. The date is the day it is merged. The number exists once the PR is open, so add the section in a follow-up commit. If two PRs add a section at the same time, keep both when resolving the conflict.
-- Mark an incompatible change **Breaking** and say what to do about it.
-- Internal refactors, tests and CI-only changes need no section.
-- A release is a section of its own, headed by its version (`## 0.2.0 — Initial public release (2026-09-29)`), and `version` in `pyproject.toml` is bumped in the same pull request.
-- `tests/test_changelog.py` checks the structure (headings, dates, order, version).
+1. **Title**: `type(scope): summary` (`feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `ci`, `build`, `perf`, `style`, `revert`). It becomes the squash commit subject and the section heading. `uv run pre-commit install` also installs the commit-msg hook that checks your commit subjects the same way.
+2. **Description**: fill the `## Changelog` block of the template with one bullet per change users see (a tool or parameter, a file, an environment variable, a default, a behaviour, the layout of the docs). Mark an incompatible change **Breaking** and say what to do about it. Write `None` for an internal change (refactor, tests, CI).
+3. **Section**: once the PR is open, run `uv run python scripts/changelog.py sync` (it reads the PR of your branch with `gh`; or `--pr <number>`, or `--number/--title/--body-file` without `gh`), then commit and push `CHANGELOG.md`. Running it again after you edit the description updates the section.
+4. **CI** fails the PR if the title does not follow the pattern, if the `## Changelog` block is missing, or if the section does not match it (`sync --check`; the message prints the fix). It re-runs when you edit the title or the description. Dependabot and PRs labelled `skip-changelog` are exempt. If two PRs add a section at the same time, keep both when resolving the conflict.
+5. A release is a section of its own, headed by its version (`## 0.2.0 — Initial public release (2026-09-29)`), and `version` in `pyproject.toml` is bumped in the same pull request. `uv run python scripts/changelog.py lint` (also a pre-commit hook and part of the tests) checks the structure.
 
 ### Why a CLA?
 
