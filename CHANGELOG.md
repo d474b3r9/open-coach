@@ -53,6 +53,9 @@ Gemini CLI, VS Code, Claude Desktop…), not only Claude Code.
 
 ### Changed
 
+- The optional Google Drive / Obsidian guide moved to `docs/optional/drive-sync.md`
+  (linked from the README), with Windows notes: `rclone` on `PATH`, Git Bash instead of
+  WSL `bash`, OAuth client and consent screen, per-machine paths.
 - The methodology skill is renamed `entraineur` → `coaching-rules`
   (`.agents/skills/coaching-rules/`, `skill://coaching-rules/...`), so every
   skill and guide name is English. The MCP guide name stays `rules`.
