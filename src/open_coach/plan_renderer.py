@@ -15,6 +15,7 @@ import unicodedata
 from collections.abc import Callable
 from pathlib import Path
 
+from open_coach.clock import to_local
 from open_coach.i18n import DEFAULT_LANGUAGE, day_abbreviation, label, t
 from open_coach.models import Language, PlannedWorkout, TrainingPlan, TrainingWeek
 from open_coach.paths import env
@@ -158,9 +159,13 @@ def render_plan_to_markdown(plan: TrainingPlan, lang: Language = DEFAULT_LANGUAG
 
     parts.append("---")
     if plan.updated_at:
-        parts.append(t("md.updated_at", lang, ts=plan.updated_at.isoformat(timespec="seconds")))
+        parts.append(
+            t("md.updated_at", lang, ts=to_local(plan.updated_at).isoformat(timespec="seconds"))
+        )
     elif plan.created_at:
-        parts.append(t("md.created_at", lang, ts=plan.created_at.isoformat(timespec="seconds")))
+        parts.append(
+            t("md.created_at", lang, ts=to_local(plan.created_at).isoformat(timespec="seconds"))
+        )
 
     return "\n".join(parts) + "\n"
 

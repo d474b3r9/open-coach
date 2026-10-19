@@ -9,9 +9,10 @@ from __future__ import annotations
 
 import asyncio
 import logging
-from datetime import date, datetime
+from datetime import UTC, date, datetime
 from typing import TYPE_CHECKING, Any
 
+from open_coach.clock import local_today, to_local
 from open_coach.models import PersonalRecord
 from open_coach.providers.base import (
     Activity,
@@ -85,7 +86,7 @@ def parse_garmin_personal_records(raw: Any) -> list[PersonalRecord]:
                 pr_date = date.fromisoformat(when[:10])
             elif isinstance(when, int | float):
                 # epoch millis
-                pr_date = datetime.fromtimestamp(when / 1000.0).date()
+                pr_date = to_local(datetime.fromtimestamp(when / 1000.0, UTC)).date()
             else:
                 continue
         except (ValueError, OSError):
@@ -233,7 +234,7 @@ class GarminProvider:
         garminconnect takes the calendar date (``YYYY-MM-DD``) for all three —
         passing anything else raises ``ValueError`` and the part comes back None.
         """
-        today = date.today().isoformat()
+        today = local_today().isoformat()
         result: dict[str, Any] = {}
         try:
             result["vo2max"] = await asyncio.to_thread(self.client.get_max_metrics, today)

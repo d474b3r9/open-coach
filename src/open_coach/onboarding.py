@@ -7,8 +7,9 @@ Each sport plugin builds its own block (records, fitness, pattern —
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime
+from datetime import date
 
+from open_coach.clock import utcnow
 from open_coach.models import ActivitySummary, AthleteProfile, PersonalRecord
 from open_coach.sports.base import SportKey
 from open_coach.sports.registry import get_sport, supported_sports
@@ -85,6 +86,6 @@ def build_profile_from_activities(
         ctl=ctl,
         atl=atl,
         tsb=tsb,
-        created_at=datetime.now(),
+        created_at=utcnow(),
         onboarding_complete=True,
     )

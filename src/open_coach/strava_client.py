@@ -12,10 +12,11 @@ import logging
 import time
 import urllib.parse
 import urllib.request
-from datetime import UTC, datetime, timedelta
+from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
+from open_coach.clock import utcnow
 from open_coach.strava_auth import DEFAULT_TOKEN_FILE, get_access_token
 
 logger = logging.getLogger(__name__)
@@ -53,7 +54,7 @@ class StravaClient:
 
         Returns a list of simplified dicts ordered most-recent-first.
         """
-        after_dt = datetime.now(UTC) - timedelta(days=months * 30)
+        after_dt = utcnow() - timedelta(days=months * 30)
         after_epoch = int(after_dt.timestamp())
 
         results: list[dict[str, Any]] = []

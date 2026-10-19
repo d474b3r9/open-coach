@@ -5,9 +5,10 @@ Pure computation — no I/O. Entry point: generate_plan().
 
 from __future__ import annotations
 
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any
 
+from open_coach.clock import utcnow
 from open_coach.i18n import DEFAULT_LANGUAGE, t
 from open_coach.models import (
     Language,
@@ -352,5 +353,5 @@ def generate_plan(
         start_date=start_date,
         end_date=goal.race_date,
         weeks=weeks,
-        created_at=datetime.now(),
+        created_at=utcnow(),
     )

@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date
 from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from open_coach.clock import UtcDatetime
 from open_coach.sports.base import ActivitySport, FitnessMarker, Intensity, SportKey, Volume
 
 Language = Literal["en", "fr"]
@@ -84,7 +85,7 @@ class TrainingPattern(BaseModel):
     long_session_avg_duration_s: float = 0.0
     easy_intensity: Intensity | None = None
     analysis_window_days: int = 180
-    computed_at: datetime
+    computed_at: UtcDatetime
 
 
 class SportProfile(BaseModel):
@@ -115,8 +116,8 @@ class AthleteProfile(BaseModel):
     tsb: float | None = None
 
     # Metadata
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
+    created_at: UtcDatetime | None = None
+    updated_at: UtcDatetime | None = None
     onboarding_complete: bool = False
     language: Language = "en"
 
@@ -140,7 +141,7 @@ class TrainingGoal(BaseModel):
     race_date: date | None = None
     target_time_s: float | None = None
     priority: Literal["A", "B", "C"] = "A"
-    created_at: datetime | None = None
+    created_at: UtcDatetime | None = None
 
 
 class GoalsConfig(BaseModel):
@@ -148,7 +149,7 @@ class GoalsConfig(BaseModel):
 
     schema_version: int = 2
     goals: list[TrainingGoal] = Field(default_factory=list)
-    updated_at: datetime | None = None
+    updated_at: UtcDatetime | None = None
 
 
 class InjuryRecord(BaseModel):
@@ -174,7 +175,7 @@ class TrainingConstraints(BaseModel):
     max_minutes_by_day: dict[str, int] = Field(default_factory=dict)
     injuries: list[InjuryRecord] = Field(default_factory=list)
     notes: str | None = None
-    updated_at: datetime | None = None
+    updated_at: UtcDatetime | None = None
 
     @field_validator("max_minutes_by_day")
     @classmethod
@@ -208,7 +209,7 @@ class WorkoutFeedback(BaseModel):
     actual_intensity: Intensity | None = None
     avg_hr: int | None = None
 
-    recorded_at: datetime | None = None
+    recorded_at: UtcDatetime | None = None
 
 
 class FeedbackLog(BaseModel):
@@ -279,8 +280,8 @@ class TrainingPlan(BaseModel):
     outcome_notes: str | None = None
     race_result_s: float | None = None
 
-    created_at: datetime | None = None
-    updated_at: datetime | None = None
+    created_at: UtcDatetime | None = None
+    updated_at: UtcDatetime | None = None
 
     def sport_of(self, workout: PlannedWorkout) -> SportKey:
         """The sport of *workout* (its own, else the plan's)."""
@@ -292,7 +293,7 @@ class WorkoutUpload(BaseModel):
 
     workout_id: int
     name: str
-    uploaded_at: datetime
+    uploaded_at: UtcDatetime
     provider: str = "garmin"  # WatchProvider.name; older registries predate the field
     schedule_ids: list[int] = Field(default_factory=list)
     schedule_dates: list[date] = Field(default_factory=list)

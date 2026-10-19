@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING, Any
 
 from fastmcp import Context
 
+from open_coach.clock import local_today
 from open_coach.recovery_monitor import assess_recovery, recommend_adaptation
 from open_coach.server import mcp
 from open_coach.tools._common import get_watch, resolve_target_date, training_load_as_of
@@ -129,7 +130,7 @@ async def get_adaptive_recommendation(
     assessment = assess_recovery(**data)
 
     # Find today's planned workout
-    target = date.fromisoformat(target_date) if target_date != "today" else date.today()
+    target = date.fromisoformat(target_date) if target_date != "today" else local_today()
     planned_workout = None
     plan = storage.load_active_plan()
     if plan:

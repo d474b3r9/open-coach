@@ -16,6 +16,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel
 
+from open_coach.clock import local_today
 from open_coach.models import (
     AthleteProfile,
     RaceReadiness,
@@ -717,13 +718,13 @@ def assess_race_readiness(
         profile: Athlete profile with VDOT, CTL/ATL/TSB, training pattern.
         goal: Target race goal.
         plan: Active training plan (optional).
-        today: Current date (defaults to date.today()).
+        today: Current date (defaults to local_today()).
 
     Returns:
         RaceReadiness with overall score, component breakdown, and recommendations.
     """
     if today is None:
-        today = date.today()
+        today = local_today()
 
     components = [
         _score_vdot(profile, goal),
