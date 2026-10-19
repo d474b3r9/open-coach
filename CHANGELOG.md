@@ -120,6 +120,9 @@ Gemini CLI, VS Code, Claude Desktop…), not only Claude Code.
 - Coach JSON files are written as UTF-8 on every platform (they used the locale
   encoding, cp1252 on Windows, so a file moved to Linux was unreadable). Legacy
   cp1252 files still load and are rewritten as UTF-8.
+- `scripts/smoke_mcp.py` read the `coach://` resources without awaiting them
+  and without a request context, so every resource reported "non-string or
+  empty". It now unwraps the FastMCP-wrapped function and awaits it.
 - `scripts/audit_docs.py` no longer warns "no numbered sections found":
   the check for `## N.` sections in the methodology `SKILL.md` is removed,
   since the rules moved to named sections in `references/`. The contributor
