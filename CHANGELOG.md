@@ -115,6 +115,9 @@ Gemini CLI, VS Code, Claude Desktop…), not only Claude Code.
 
 ### Fixed
 
+- `scripts/smoke_mcp.py` read the `coach://` resources without awaiting them
+  and without a request context, so every resource reported "non-string or
+  empty". It now unwraps the FastMCP-wrapped function and awaits it.
 - `scripts/audit_docs.py` no longer warns "no numbered sections found":
   the check for `## N.` sections in the methodology `SKILL.md` is removed,
   since the rules moved to named sections in `references/`. The contributor
