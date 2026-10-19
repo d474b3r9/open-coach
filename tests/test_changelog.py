@@ -45,7 +45,7 @@ def test_sections_are_newest_first() -> None:
 
 
 def test_no_unreleased_section() -> None:
-    assert "Unreleased" not in TEXT
+    assert not re.search(r"(?mi)^##.*unreleased", TEXT)
 
 
 def test_every_section_has_content_and_known_groups() -> None:
